@@ -80,19 +80,20 @@ export const WorktreeSelector: React.FC<Props> = ({ worktrees, onSelect, onDelet
       <Box flexDirection="row" flexGrow={1}>
         <Box flexDirection="column" width="50%" marginRight={1}>
           <Text bold underline>Worktrees:</Text>
-          <Box marginTop={1}>
+          <Box marginTop={1} flexDirection="column">
             {filteredWorktrees.length === 0 ? (
               <Text color="yellow">No worktrees found</Text>
             ) : (
               filteredWorktrees.map((wt, index) => (
-                <Text
-                  key={wt.path}
-                  color={index === selectedIndex ? 'cyan' : undefined}
-                  inverse={index === selectedIndex}
-                >
-                  {index === selectedIndex ? '▶ ' : '  '}
-                  {wt.branch || '(detached)'} - {wt.path.split('/').pop()}
-                </Text>
+                <Box key={wt.path}>
+                  <Text
+                    color={index === selectedIndex ? 'cyan' : undefined}
+                    inverse={index === selectedIndex}
+                  >
+                    {index === selectedIndex ? '▶ ' : '  '}
+                    {wt.branch || '(detached)'} - {wt.path.split('/').pop()}
+                  </Text>
+                </Box>
               ))
             )}
           </Box>

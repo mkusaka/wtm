@@ -7,6 +7,7 @@
     "wtm": "./dist/src/bin/wtm.js"
   },
   "scripts": {
+    "start": "node dist/src/bin/wtm.js",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
