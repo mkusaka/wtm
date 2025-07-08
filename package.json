@@ -1,6 +1,6 @@
 {
   "name": "@mkusaka/wtm",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Git worktree manager CLI tool",
   "type": "module",
   "bin": {
