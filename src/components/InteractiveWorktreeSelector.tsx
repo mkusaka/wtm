@@ -50,8 +50,9 @@ export const InteractiveWorktreeSelector: React.FC<Props> = ({ worktrees, onSele
       }
     } else {
       setSelectedWorktree(null);
+      setSelectedIndex(0);
     }
-  }, [filter, filteredWorktrees]);
+  }, [filter]);
 
   // Handle keyboard input
   useInput((input, key) => {
@@ -59,11 +60,13 @@ export const InteractiveWorktreeSelector: React.FC<Props> = ({ worktrees, onSele
       if (key.escape) {
         onExit();
         exit();
+      } else if (key.return && selectedWorktree) {
+        onSelect(selectedWorktree);
       } else if (key.ctrl && input === 'd' && selectedWorktree) {
         setMode('confirm-delete');
       } else if (key.backspace || key.delete) {
         setFilter(filter.slice(0, -1));
-      } else if (input && !key.ctrl && !key.meta) {
+      } else if (input && !key.ctrl && !key.meta && !key.return) {
         setFilter(filter + input);
       }
     }
@@ -111,6 +114,7 @@ export const InteractiveWorktreeSelector: React.FC<Props> = ({ worktrees, onSele
             </Box>
           ) : (
             <Select
+              key={`select-${filter}-${selectedIndex}`}
               options={options}
               defaultValue={options[selectedIndex]?.value || options[0]?.value}
               onChange={(value: string) => {
@@ -119,7 +123,6 @@ export const InteractiveWorktreeSelector: React.FC<Props> = ({ worktrees, onSele
                   const index = filteredWorktrees.indexOf(worktree);
                   setSelectedIndex(index);
                   setSelectedWorktree(worktree);
-                  onSelect(worktree);
                 }
               }}
               visibleOptionCount={10}
