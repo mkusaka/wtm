@@ -9,8 +9,8 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "vitest",
-    "test:coverage": "vitest --coverage",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "lint": "oxlint src --tsconfig tsconfig.json",
     "lint:eslint": "eslint src --ext .ts",
     "format": "prettier --write .",
