@@ -1,13 +1,21 @@
 import { program } from 'commander';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { listCommand } from './commands/list.js';
 import { addCommand } from './commands/add.js';
 import { removeCommand } from './commands/remove.js';
 import { initCommand } from './commands/init.js';
 
+// Read version from package.json
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
+
 program
   .name('wtm')
   .description('Git worktree manager')
-  .version('0.1.0');
+  .version(packageJson.version);
 
 program
   .command('list')
