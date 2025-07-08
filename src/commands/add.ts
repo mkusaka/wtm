@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import ora from 'ora';
-import { GitWorktreeManager } from '../utils/git';
-import { HookManager } from '../utils/hook';
-import type { AddCommandOptions } from '../types/index';
+import { GitWorktreeManager } from '../utils/git.js';
+import { HookManager } from '../utils/hook.js';
+import type { AddCommandOptions } from '../types/index.js';
 
 export async function addCommand(branch: string, options: AddCommandOptions): Promise<void> {
   const spinner = ora(`Creating worktree for branch '${branch}'...`).start();

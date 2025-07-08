@@ -1,8 +1,8 @@
 import { program } from 'commander';
-import { listCommand } from './commands/list';
-import { addCommand } from './commands/add';
-import { removeCommand } from './commands/remove';
-import { initCommand } from './commands/init';
+import { listCommand } from './commands/list.js';
+import { addCommand } from './commands/add.js';
+import { removeCommand } from './commands/remove.js';
+import { initCommand } from './commands/init.js';
 
 program
   .name('wtm')

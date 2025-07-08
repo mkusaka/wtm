@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import { createInterface } from 'readline';
-import { GitWorktreeManager } from '../utils/git';
-import type { RemoveCommandOptions } from '../types/index';
+import { GitWorktreeManager } from '../utils/git.js';
+import type { RemoveCommandOptions } from '../types/index.js';
 
 function askConfirmation(question: string): Promise<boolean> {
   const rl = createInterface({

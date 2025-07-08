@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import { GitWorktreeManager } from '../utils/git';
-import { HookManager } from '../utils/hook';
+import { GitWorktreeManager } from '../utils/git.js';
+import { HookManager } from '../utils/hook.js';
 
 export async function initCommand(): Promise<void> {
   try {
