@@ -71,8 +71,8 @@ export const InteractiveWorktreeSelector: React.FC<Props> = ({ worktrees, onSele
 
   if (mode === 'confirm-delete' && selectedWorktree) {
     return (
-      <Box flexDirection="column">
-        <Box borderStyle="round" borderColor="cyan" paddingX={1}>
+      <Box flexDirection="column" width="100%">
+        <Box borderStyle="round" borderColor="cyan" paddingX={1} width="100%">
           <Text bold>🌲 Git Worktree Manager</Text>
         </Box>
         <Box marginTop={2}>
@@ -96,15 +96,15 @@ export const InteractiveWorktreeSelector: React.FC<Props> = ({ worktrees, onSele
   }
 
   return (
-    <Box flexDirection="column">
-      <Box borderStyle="round" borderColor="cyan" paddingX={1}>
+    <Box flexDirection="column" width="100%">
+      <Box borderStyle="round" borderColor="cyan" paddingX={1} width="100%">
         <Text bold>🌲 Git Worktree Manager</Text>
       </Box>
       <Box marginTop={1}>
         <Text>🔍 Filter: {filter}<Text color="gray">_</Text></Text>
       </Box>
       <Box marginTop={1} flexDirection="row">
-        <Box flexDirection="column" width="60%">
+        <Box flexDirection="column" flexGrow={1}>
           {filteredWorktrees.length === 0 ? (
             <Box paddingX={1}>
               <Text color="yellow">No worktrees found</Text>
@@ -126,7 +126,7 @@ export const InteractiveWorktreeSelector: React.FC<Props> = ({ worktrees, onSele
             />
           )}
         </Box>
-        <Box marginLeft={2} borderStyle="single" paddingX={1} width="40%">
+        <Box marginLeft={2} borderStyle="single" paddingX={1} minWidth={30}>
           <Box flexDirection="column">
             <Text bold underline>Preview:</Text>
             {selectedWorktree ? (
@@ -141,7 +141,7 @@ export const InteractiveWorktreeSelector: React.FC<Props> = ({ worktrees, onSele
           </Box>
         </Box>
       </Box>
-      <Box marginTop={1} borderStyle="single" paddingX={1}>
+      <Box marginTop={1} borderStyle="single" paddingX={1} width="100%">
         <Text dimColor>
           Type to filter | ↑↓ Navigate | Enter: Open | Ctrl-D: Delete | Esc: Exit
         </Text>
