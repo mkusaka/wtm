@@ -13,7 +13,8 @@
     "test:coverage": "vitest --coverage",
     "lint": "oxlint src --tsconfig tsconfig.json",
     "lint:eslint": "eslint src --ext .ts",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepublishOnly": "pnpm run build && pnpm run test && pnpm run lint"
   },
   "keywords": [
     "git",
