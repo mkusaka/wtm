@@ -81,6 +81,26 @@ The package is published to npm as `@mkusaka/wtm`:
 
 The `prepublishOnly` script ensures the package is always built and tested before publishing.
 
+### CI/CD Workflows
+
+The project uses GitHub Actions for continuous integration and deployment:
+
+1. **CI Workflow** (`.github/workflows/ci.yml`)
+   - Runs on push to main and pull requests
+   - Tests against Node.js 18.x, 20.x, and 22.x
+   - Executes: type check, lint, tests, and build
+   - Verifies build output is executable
+
+2. **Release Workflow** (`.github/workflows/release.yml`)
+   - Triggered by version tags (v*)
+   - Publishes to npm registry
+   - Creates GitHub releases with build artifacts
+   - Requires `NPM_TOKEN` secret for authentication
+
+3. **Dependency Management** (`.github/dependabot.yml`)
+   - Weekly updates for npm packages and GitHub Actions
+   - Groups development and production dependencies
+
 ## Important Patterns
 
 - All async operations use async/await (no callbacks)

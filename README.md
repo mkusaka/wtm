@@ -1,5 +1,8 @@
 # wtm - Git Worktree Manager
 
+[![CI](https://github.com/mkusaka/wtm/actions/workflows/ci.yml/badge.svg)](https://github.com/mkusaka/wtm/actions/workflows/ci.yml)
+[![npm version](https://badge.fury.io/js/@mkusaka%2Fwtm.svg)](https://www.npmjs.com/package/@mkusaka/wtm)
+
 A high-performance Git worktree management CLI tool written in TypeScript, designed to simplify the creation, organization, and maintenance of Git worktrees.
 
 ## Features
@@ -244,6 +247,22 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+### Development Setup
+
+All pull requests must pass CI checks:
+- Tests must pass on Node.js 18.x, 20.x, and 22.x
+- Type checking must pass (`pnpm typecheck`)
+- Linting must pass (`pnpm lint`)
+- Build must succeed (`pnpm build`)
+
+### Publishing (Maintainers Only)
+
+To publish a new version:
+1. Ensure you have `NPM_TOKEN` secret configured in GitHub repository settings
+2. Run `npm version patch/minor/major` to bump version
+3. Push with tags: `git push origin main --follow-tags`
+4. GitHub Actions will automatically publish to npm and create a release
 
 ## License
 
