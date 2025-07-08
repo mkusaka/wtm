@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
-import { Select, ConfirmInput } from '@inkjs/ui';
+import SelectInput from 'ink-select-input';
+import { ConfirmInput } from '@inkjs/ui';
 import type { Worktree } from '../types/index.js';
 
 interface Props {
@@ -24,9 +25,10 @@ export const InteractiveWorktreeSelector: React.FC<Props> = ({ worktrees, onSele
     wt.path.toLowerCase().includes(filter.toLowerCase())
   );
 
-  const options = filteredWorktrees.map(wt => ({
+  const items = filteredWorktrees.map((wt, index) => ({
     label: `${wt.branch || '(detached)'} - ${wt.path.split('/').pop()}`,
-    value: wt.path
+    value: wt.path,
+    key: wt.path
   }));
 
   // Update selected worktree when filter changes
@@ -60,8 +62,6 @@ export const InteractiveWorktreeSelector: React.FC<Props> = ({ worktrees, onSele
       if (key.escape) {
         onExit();
         exit();
-      } else if (key.return && selectedWorktree) {
-        onSelect(selectedWorktree);
       } else if (key.ctrl && input === 'd' && selectedWorktree) {
         setMode('confirm-delete');
       } else if (key.backspace || key.delete) {
@@ -113,19 +113,24 @@ export const InteractiveWorktreeSelector: React.FC<Props> = ({ worktrees, onSele
               <Text color="yellow">No worktrees found</Text>
             </Box>
           ) : (
-            <Select
-              key={`select-${filter}-${selectedIndex}`}
-              options={options}
-              defaultValue={options[selectedIndex]?.value || options[0]?.value}
-              onChange={(value: string) => {
-                const worktree = filteredWorktrees.find(wt => wt.path === value);
+            <SelectInput
+              items={items}
+              initialIndex={selectedIndex}
+              limit={10}
+              onSelect={(item) => {
+                const worktree = filteredWorktrees.find(wt => wt.path === item.value);
+                if (worktree) {
+                  onSelect(worktree);
+                }
+              }}
+              onHighlight={(item) => {
+                const worktree = filteredWorktrees.find(wt => wt.path === item.value);
                 if (worktree) {
                   const index = filteredWorktrees.indexOf(worktree);
                   setSelectedIndex(index);
                   setSelectedWorktree(worktree);
                 }
               }}
-              visibleOptionCount={10}
             />
           )}
         </Box>
