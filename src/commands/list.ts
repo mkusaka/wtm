@@ -1,9 +1,15 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import { GitWorktreeManager } from '../utils/git.js';
+import { interactiveCommand } from './interactive.js';
 import type { ListCommandOptions, EnrichedWorktree } from '../types/index.js';
 
 export async function listCommand(options: ListCommandOptions): Promise<void> {
+  // Interactive mode
+  if (options.interactive) {
+    return interactiveCommand();
+  }
+  
   const spinner = ora('Loading worktrees...').start();
   
   try {

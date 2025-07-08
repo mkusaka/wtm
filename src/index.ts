@@ -13,6 +13,7 @@ program
   .command('list', { isDefault: true })
   .description('List all worktrees')
   .option('-j, --json', 'Output in JSON format')
+  .option('-i, --interactive', 'Interactive mode with filtering')
   .action(listCommand);
 
 program

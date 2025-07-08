@@ -2,7 +2,7 @@ import { simpleGit } from 'simple-git';
 import type { SimpleGit } from 'simple-git';
 import path from 'path';
 import fs from 'fs/promises';
-import type { Worktree, GitWorktreeManagerInterface } from '../types/index';
+import type { Worktree, GitWorktreeManagerInterface } from '../types/index.js';
 
 export class GitWorktreeManager implements GitWorktreeManagerInterface {
   git: SimpleGit;

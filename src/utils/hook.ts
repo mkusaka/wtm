@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';
-import type { HookManagerInterface } from '../types/index';
+import type { HookManagerInterface } from '../types/index.js';
 
 export class HookManager implements HookManagerInterface {
   projectRoot: string;

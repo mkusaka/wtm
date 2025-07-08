@@ -28,6 +28,7 @@ export interface EnrichedWorktree extends Worktree {
 
 export interface ListCommandOptions {
   json?: boolean;
+  interactive?: boolean;
 }
 
 export interface AddCommandOptions {
