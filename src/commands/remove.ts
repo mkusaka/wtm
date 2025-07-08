@@ -1,20 +1,28 @@
+import React from 'react';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createInterface } from 'readline';
+import { render } from 'ink';
+import { ConfirmInput } from '@inkjs/ui';
 import { GitWorktreeManager } from '../utils/git.js';
 import type { RemoveCommandOptions } from '../types/index.js';
 
-function askConfirmation(question: string): Promise<boolean> {
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-
+function askConfirmation(message: string): Promise<boolean> {
   return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
-    });
+    const { unmount } = render(
+      React.createElement('div', null,
+        React.createElement('div', null, message),
+        React.createElement(ConfirmInput, {
+          onConfirm: () => {
+            unmount();
+            resolve(true);
+          },
+          onCancel: () => {
+            unmount();
+            resolve(false);
+          }
+        })
+      )
+    );
   });
 }
 
@@ -43,8 +51,7 @@ export async function removeCommand(branch: string, options: RemoveCommandOption
     
     if (!confirmed) {
       confirmed = await askConfirmation(
-        `${chalk.yellow('⚠️  Warning:')} This will remove the worktree and delete the branch '${branch}'.\n` +
-        'Are you sure? (y/N) '
+        `${chalk.yellow('⚠️  Warning:')} This will remove the worktree and delete the branch '${branch}'.`
       );
     }
     

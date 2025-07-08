@@ -10,10 +10,10 @@ program
   .version('0.1.0');
 
 program
-  .command('list', { isDefault: true })
+  .command('list')
   .description('List all worktrees')
   .option('-j, --json', 'Output in JSON format')
-  .option('-i, --interactive', 'Interactive mode with filtering')
+  .option('--no-interactive', 'Disable interactive mode')
   .action(listCommand);
 
 program
@@ -32,5 +32,11 @@ program
   .command('init')
   .description('Initialize hook file in current repository')
   .action(initCommand);
+
+// Set default action to interactive list
+program
+  .action(() => {
+    listCommand({ interactive: true });
+  });
 
 export { program };

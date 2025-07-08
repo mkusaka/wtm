@@ -27,6 +27,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@inkjs/ui": "^2.0.0",
     "chalk": "^5.4.1",
     "commander": "^14.0.0",
     "ink": "^6.0.1",

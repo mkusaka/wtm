@@ -4,9 +4,9 @@ import { GitWorktreeManager } from '../utils/git.js';
 import { interactiveCommand } from './interactive.js';
 import type { ListCommandOptions, EnrichedWorktree } from '../types/index.js';
 
-export async function listCommand(options: ListCommandOptions): Promise<void> {
-  // Interactive mode
-  if (options.interactive) {
+export async function listCommand(options: ListCommandOptions = {}): Promise<void> {
+  // Interactive mode is default unless disabled or json output
+  if (options.interactive !== false && !options.json) {
     return interactiveCommand();
   }
   

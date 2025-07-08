@@ -42,7 +42,7 @@ describe('listCommand', () => {
   it('should exit if not in a git repository', async () => {
     mockGit.isGitRepository.mockResolvedValue(false);
     
-    await listCommand({} as ListCommandOptions);
+    await listCommand({ interactive: false } as ListCommandOptions);
     
     expect(processExitSpy).toHaveBeenCalledWith(1);
   });
@@ -51,7 +51,7 @@ describe('listCommand', () => {
     mockGit.isGitRepository.mockResolvedValue(true);
     mockGit.listWorktrees.mockResolvedValue([]);
     
-    await listCommand({} as ListCommandOptions);
+    await listCommand({ interactive: false } as ListCommandOptions);
     
     expect(consoleLogSpy).toHaveBeenCalledWith(chalk.yellow('No worktrees found'));
   });
@@ -72,7 +72,7 @@ describe('listCommand', () => {
       isClean: () => true
     });
     
-    await listCommand({} as ListCommandOptions);
+    await listCommand({ interactive: false } as ListCommandOptions);
     
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('🌳 Git Worktrees:'));
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('feature-branch'));
@@ -96,7 +96,7 @@ describe('listCommand', () => {
       isClean: () => false
     });
     
-    await listCommand({} as ListCommandOptions);
+    await listCommand({ interactive: false } as ListCommandOptions);
     
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('2 modified, 1 added, 1 deleted'));
   });
@@ -117,7 +117,7 @@ describe('listCommand', () => {
       isClean: () => true
     });
     
-    await listCommand({} as ListCommandOptions);
+    await listCommand({ interactive: false } as ListCommandOptions);
     
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('(detached)'));
   });
@@ -183,7 +183,7 @@ describe('listCommand', () => {
     ]);
     mockGit.getStatus.mockRejectedValue(new Error('Permission denied'));
     
-    await listCommand({} as ListCommandOptions);
+    await listCommand({ interactive: false } as ListCommandOptions);
     
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Error: Permission denied'));
   });

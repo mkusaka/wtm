@@ -1,8 +1,9 @@
 import React from 'react';
 import { render } from 'ink';
 import chalk from 'chalk';
+import { execSync } from 'child_process';
 import { GitWorktreeManager } from '../utils/git.js';
-import { WorktreeSelector } from '../components/WorktreeSelector.js';
+import { InteractiveWorktreeSelector } from '../components/InteractiveWorktreeSelector.js';
 import type { Worktree } from '../types/index.js';
 
 export async function interactiveCommand(): Promise<void> {
@@ -21,8 +22,21 @@ export async function interactiveCommand(): Promise<void> {
   }
 
   const handleSelect = (worktree: Worktree) => {
-    console.log(chalk.green(`\nTo change to this worktree, run:`));
-    console.log(chalk.cyan(`  cd ${worktree.path}`));
+    try {
+      // Clear the terminal and show the path
+      console.clear();
+      console.log(chalk.green(`\nChanging to worktree: ${worktree.branch || '(detached)'}`));
+      console.log(chalk.cyan(`Path: ${worktree.path}\n`));
+      
+      // Launch new shell in the worktree directory
+      const shell = process.env.SHELL || '/bin/bash';
+      execSync(shell, {
+        stdio: 'inherit',
+        cwd: worktree.path
+      });
+    } catch (error: any) {
+      console.error(chalk.red(`\nFailed to change directory: ${error.message}`));
+    }
     process.exit(0);
   };
 
@@ -44,7 +58,7 @@ export async function interactiveCommand(): Promise<void> {
   };
 
   render(
-    React.createElement(WorktreeSelector, {
+    React.createElement(InteractiveWorktreeSelector, {
       worktrees,
       onSelect: handleSelect,
       onDelete: handleDelete,

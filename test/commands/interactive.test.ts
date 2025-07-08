@@ -19,6 +19,7 @@ describe('interactiveCommand', () => {
   let mockGit: any;
   let mockConsoleError: Mock;
   let mockConsoleLog: Mock;
+  let mockConsoleClear: Mock;
   let mockExit: Mock;
 
   beforeEach(() => {
@@ -37,6 +38,7 @@ describe('interactiveCommand', () => {
     
     mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockConsoleClear = vi.spyOn(console, 'clear').mockImplementation(() => {});
     mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit');
     });
@@ -109,10 +111,10 @@ describe('interactiveCommand', () => {
     }
 
     expect(mockConsoleLog).toHaveBeenCalledWith(
-      expect.stringContaining('To change to this worktree, run:')
+      expect.stringContaining('Changing to worktree: feature-1')
     );
     expect(mockConsoleLog).toHaveBeenCalledWith(
-      expect.stringContaining('cd /path/to/worktree1')
+      expect.stringContaining('Path: /path/to/worktree1')
     );
     expect(mockExit).toHaveBeenCalledWith(0);
   });
