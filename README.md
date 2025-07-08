@@ -18,13 +18,25 @@ A high-performance Git worktree management CLI tool written in TypeScript, desig
 ### Prerequisites
 - Node.js 18.0.0 or higher
 - Git 2.0.0 or higher
-- pnpm (recommended) or npm
+
+### Install from npm
+
+```bash
+# Using npm
+npm install -g @mkusaka/wtm
+
+# Using pnpm (recommended)
+pnpm add -g @mkusaka/wtm
+
+# Using yarn
+yarn global add @mkusaka/wtm
+```
 
 ### Install from source
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/wtm.git
+git clone https://github.com/mkusaka/wtm.git
 cd wtm
 
 # Install dependencies
