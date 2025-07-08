@@ -1,5 +1,5 @@
 {
-  "name": "wtm",
+  "name": "@mkusaka/wtm",
   "version": "0.1.0",
   "description": "Git worktree manager CLI tool",
   "type": "module",
