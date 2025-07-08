@@ -25,7 +25,7 @@ export const InteractiveWorktreeSelector: React.FC<Props> = ({ worktrees, onSele
     wt.path.toLowerCase().includes(filter.toLowerCase())
   );
 
-  const items = filteredWorktrees.map((wt, index) => ({
+  const items = filteredWorktrees.map(wt => ({
     label: `${wt.branch || '(detached)'} - ${wt.path.split('/').pop()}`,
     value: wt.path,
     key: wt.path

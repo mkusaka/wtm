@@ -4,8 +4,10 @@ A high-performance Git worktree management CLI tool written in TypeScript, desig
 
 ## Features
 
+- **Interactive TUI Mode**: Default interactive terminal UI with real-time filtering and preview
 - **Organized Worktree Structure**: Creates worktrees with timestamp prefixes in `.git/tmp_worktrees/` for better organization
-- **Interactive Selection**: List and navigate worktrees with detailed status information
+- **Real-time Filtering**: Type to filter worktrees by branch name or path instantly
+- **Preview Pane**: See worktree details (path, branch, commit) while navigating
 - **Hook System**: Automate worktree initialization with customizable hooks
 - **TypeScript Support**: Fully typed with TypeScript for better developer experience
 - **Fast Linting**: Uses oxc-lint for blazing-fast code quality checks
@@ -51,11 +53,23 @@ pnpm link --global
 
 ## Usage
 
-### List all worktrees
+### Interactive Mode (Default)
 ```bash
-wtm              # Default command - lists all worktrees
-wtm list         # Explicit list command
-wtm list --json  # Output in JSON format for scripting
+wtm              # Opens interactive TUI for worktree selection
+wtm list         # Same as above - interactive mode is default
+```
+
+In interactive mode:
+- **Type to filter**: Start typing to filter worktrees by branch name or path
+- **↑/↓ or j/k**: Navigate through worktrees
+- **Enter**: Open selected worktree in a new shell
+- **Ctrl-D**: Delete the selected worktree (with confirmation)
+- **Esc**: Exit interactive mode
+
+### Non-interactive Mode
+```bash
+wtm list --no-interactive  # Simple list output
+wtm list --json           # JSON format (automatically disables interactive mode)
 ```
 
 ### Create a new worktree
@@ -139,6 +153,7 @@ wtm/
 ├── src/
 │   ├── bin/          # CLI entry point
 │   ├── commands/     # Command implementations
+│   ├── components/   # React components for interactive UI
 │   ├── utils/        # Utility functions
 │   └── types/        # TypeScript type definitions
 ├── test/             # Test files
@@ -152,6 +167,9 @@ wtm/
 - **simple-git**: Git operations
 - **chalk**: Terminal styling
 - **ora**: Progress indicators
+- **ink**: React for CLIs - powers the interactive TUI
+- **@inkjs/ui**: Pre-built UI components for ink
+- **ink-select-input**: Enhanced select component with highlight tracking
 - **oxc-lint**: Fast linting
 - **vitest**: Testing framework
 
@@ -179,10 +197,11 @@ Add `.wt_hook.js` to your `.gitignore` to keep hook configurations local:
 ### Commands
 
 #### `wtm [list]`
-Lists all worktrees with their status.
+Lists all worktrees with their status. Opens interactive TUI by default.
 
 Options:
 - `-j, --json`: Output in JSON format
+- `--no-interactive`: Disable interactive mode and show simple list
 
 #### `wtm add <branch>`
 Creates a new worktree for the specified branch.

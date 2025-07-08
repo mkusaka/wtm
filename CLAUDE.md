@@ -27,6 +27,9 @@ pnpm lint
 
 # Development workflow
 pnpm build && node dist/src/bin/wtm.js <command>  # Test CLI locally
+
+# Watch mode for development
+pnpm start  # Run tsx watch mode for rapid development
 ```
 
 ## Architecture
@@ -53,12 +56,20 @@ pnpm build && node dist/src/bin/wtm.js <command>  # Test CLI locally
    - Executes with environment variables: `WT_WORKTREE_PATH`, `WT_BRANCH_NAME`, `WT_PROJECT_ROOT`
    - Default hook copies `.env`, `.env.local`, and `.claude` files
 
+5. **Interactive UI Components** (`src/components/`)
+   - `InteractiveWorktreeSelector.tsx`: Main TUI component using ink (React for CLIs)
+   - Real-time filtering with `ink-select-input` for better highlight tracking
+   - Preview pane shows selected worktree details
+   - Keyboard controls: Filter typing, navigation (↑↓), selection (Enter), deletion (Ctrl-D)
+
 ### Key Implementation Details
 
 - **TypeScript Configuration**: Strict mode enabled, ES modules, targets ES2022
 - **Testing**: Vitest with mocked Git operations and file system
 - **Linting**: oxc-lint configured to disable common style rules that conflict with the codebase
 - **Build Output**: TypeScript compiles to `dist/` directory, preserving source structure
+- **UI Framework**: ink (React for CLIs) with @inkjs/ui components and ink-select-input
+- **Interactive Mode**: Default behavior, can be disabled with `--no-interactive` flag
 
 ### Publishing Workflow
 
@@ -77,3 +88,6 @@ The `prepublishOnly` script ensures the package is always built and tested befor
 - Commands should provide clear feedback for both success and error cases
 - Type imports use `import type` syntax to avoid runtime overhead
 - Test files mirror source structure and use `.test.ts` extension
+- Interactive components use ink (React for CLIs) with hooks and functional components
+- Interactive mode is the default - explicit `--no-interactive` flag to disable
+- Component testing is challenging due to ink's nature - focus on integration tests
