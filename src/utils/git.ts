@@ -89,6 +89,20 @@ export class GitWorktreeManager implements GitWorktreeManagerInterface {
       await this.git.raw(['worktree', 'add', '-b', branch, worktreePath, baseBranch]);
     }
     
+    // Create .wt_env file with worktree metadata
+    const projectRoot = await this.getProjectRoot();
+    const envContent = [
+      `# Worktree metadata`,
+      `WT_ROOT_DIR="${projectRoot}"`,
+      `WT_BRANCH_NAME="${branch}"`,
+      `WT_CREATED_AT="${new Date().toISOString()}"`,
+      `WT_BASE_BRANCH="${baseBranch}"`,
+      ''
+    ].join('\n');
+    
+    const envPath = path.join(worktreePath, '.wt_env');
+    await fs.writeFile(envPath, envContent, 'utf-8');
+    
     return worktreePath;
   }
 

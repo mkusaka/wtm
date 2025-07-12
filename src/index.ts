@@ -6,6 +6,7 @@ import { listCommand } from './commands/list.js';
 import { addCommand } from './commands/add.js';
 import { removeCommand } from './commands/remove.js';
 import { initCommand } from './commands/init.js';
+import { rootCommand } from './commands/root.js';
 
 // Read version from package.json
 const __filename = fileURLToPath(import.meta.url);
@@ -30,6 +31,7 @@ program
   .option('-b, --branch [branch]', 'Branch name for the new worktree (interactive if not specified)')
   .option('--from <branch>', 'Base branch to create from', 'HEAD')
   .option('--path-only', 'Output only the worktree path (useful for shell functions)')
+  .option('-s, --shell', 'Launch a new shell in the worktree directory')
   .action(addCommand);
 
 program
@@ -42,6 +44,13 @@ program
   .command('init')
   .description('Initialize hook file in current repository')
   .action(initCommand);
+
+program
+  .command('root')
+  .description('Show the main repository path (use with: cd "$(wtm root)")')
+  .option('-j, --json', 'Output in JSON format')
+  .option('-v, --verbose', 'Show detailed information about worktree status')
+  .action(rootCommand);
 
 // Set default action to interactive list
 program

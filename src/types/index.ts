@@ -35,10 +35,16 @@ export interface AddCommandOptions {
   branch?: string | boolean;
   from?: string;
   pathOnly?: boolean;
+  shell?: boolean;
 }
 
 export interface RemoveCommandOptions {
   force?: boolean;
+}
+
+export interface RootCommandOptions {
+  json?: boolean;
+  verbose?: boolean;
 }
 
 export interface GitWorktreeManagerInterface {
