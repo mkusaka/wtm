@@ -12,11 +12,13 @@ A high-performance Git worktree management CLI tool written in TypeScript, desig
 - **Real-time Filtering**: Type to filter worktrees by branch name or path instantly
 - **Preview Pane**: See worktree details (path, branch, commit) while navigating
 - **Hook System**: Automate worktree initialization with customizable hooks
-- **TypeScript Support**: Fully typed with TypeScript for better developer experience
+- **TypeScript Support**: Fully typed with TypeScript and ES modules for better developer experience
 - **Fast Linting**: Uses oxc-lint for blazing-fast code quality checks
 - **Rich CLI Output**: Colorful and informative terminal output with progress indicators
 - **Status Tracking**: Shows working tree status, modified files, and recent commits
 - **JSON Export**: Machine-readable output format for scripting and automation
+- **Zero Config**: Works out of the box with sensible defaults
+- **Branch Normalization**: Automatically handles `refs/heads/` prefixes
 
 ## Installation
 
@@ -30,7 +32,7 @@ A high-performance Git worktree management CLI tool written in TypeScript, desig
 # Using npm
 npm install -g @mkusaka/wtm
 
-# Using pnpm (recommended)
+# Using pnpm
 pnpm add -g @mkusaka/wtm
 
 # Using yarn
@@ -58,16 +60,16 @@ pnpm link --global
 
 ### Interactive Mode (Default)
 ```bash
-wtm              # Opens interactive TUI for worktree selection
-wtm list         # Same as above - interactive mode is default
+wtm              # Opens interactive TUI for worktree selection (default)
+wtm list         # Same as above - interactive mode is default for list command
 ```
 
 In interactive mode:
 - **Type to filter**: Start typing to filter worktrees by branch name or path
-- **↑/↓ or j/k**: Navigate through worktrees
+- **↑/↓**: Navigate through worktrees
 - **Enter**: Open selected worktree in a new shell
 - **Ctrl-D**: Delete the selected worktree (with confirmation)
-- **Esc**: Exit interactive mode
+- **Ctrl-C or Esc**: Exit interactive mode
 
 ### Non-interactive Mode
 ```bash
@@ -104,6 +106,8 @@ The default hook copies the following files/directories from the main repository
 - `.env.local`
 - `.claude`
 
+These files are commonly used for local configuration and are not typically committed to version control.
+
 ### Customizing Hooks
 Edit `.wt_hook.js` to customize the initialization process:
 
@@ -134,19 +138,24 @@ async function main() {
 pnpm install
 
 # Run tests
-pnpm test
-
-# Run tests with coverage
-pnpm test:coverage
+pnpm test              # Run all tests in CI mode
+pnpm test:coverage     # Run tests with coverage reports
 
 # Type checking
 pnpm typecheck
 
-# Linting
-pnpm lint
+# Linting and formatting
+pnpm lint              # Fast linting with oxc-lint
+pnpm lint:eslint       # Comprehensive linting with ESLint
+pnpm format            # Format code with Prettier
 
-# Build
-pnpm build
+# Build and run
+pnpm build             # Build TypeScript to JavaScript
+pnpm start             # Run the built CLI
+
+# Development workflow
+pnpm build && node dist/src/bin/wtm.js <command>  # Test CLI locally
+tsx src/bin/wtm.ts <command>                      # Run directly with tsx
 ```
 
 ### Project Structure
@@ -160,21 +169,23 @@ wtm/
 │   ├── utils/        # Utility functions
 │   └── types/        # TypeScript type definitions
 ├── test/             # Test files
-└── dist/             # Compiled output
+├── dist/             # Compiled output
+└── .github/          # GitHub Actions workflows
 ```
 
 ### Technology Stack
 
-- **TypeScript**: Type-safe development
-- **Commander.js**: CLI argument parsing
-- **simple-git**: Git operations
-- **chalk**: Terminal styling
-- **ora**: Progress indicators
-- **ink**: React for CLIs - powers the interactive TUI
-- **@inkjs/ui**: Pre-built UI components for ink
-- **ink-select-input**: Enhanced select component with highlight tracking
-- **oxc-lint**: Fast linting
-- **vitest**: Testing framework
+- **TypeScript**: Type-safe development with ES modules
+- **Commander.js**: CLI argument parsing (v14)
+- **simple-git**: Git operations wrapper
+- **chalk**: Terminal styling (v5)
+- **ora**: Progress indicators (v8)
+- **ink**: React for CLIs - powers the interactive TUI (v6)
+- **@inkjs/ui**: Pre-built UI components for ink (v2)
+- **ink-select-input**: Enhanced select component with highlight tracking (v6)
+- **oxc-lint**: Fast linting (primary linter)
+- **vitest**: Testing framework with coverage support
+- **tsx**: TypeScript execution for development
 
 ## Configuration
 
@@ -199,11 +210,11 @@ Add `.wt_hook.js` to your `.gitignore` to keep hook configurations local:
 
 ### Commands
 
-#### `wtm [list]`
+#### `wtm` or `wtm list`
 Lists all worktrees with their status. Opens interactive TUI by default.
 
 Options:
-- `-j, --json`: Output in JSON format
+- `-j, --json`: Output in JSON format (automatically disables interactive mode)
 - `--no-interactive`: Disable interactive mode and show simple list
 
 #### `wtm add <branch>`
@@ -232,11 +243,17 @@ Creates a `.wt_hook.js` template in the repository root.
 2. **"No worktree found for branch" error**
    - Verify the branch name is correct
    - Use `wtm list` to see all available worktrees
+   - Branch names are normalized (e.g., `refs/heads/main` becomes `main`)
 
 3. **Hook execution fails**
    - Check `.wt_hook.js` syntax
    - Ensure the hook file has execute permissions
    - Review error messages for specific issues
+   - Hook files run with inherited stdio for real-time output
+
+4. **ES Module import errors**
+   - Ensure all imports use `.js` extensions (even for TypeScript files)
+   - Node.js version must be 18.0.0 or higher for ES modules support
 
 ## Contributing
 
@@ -258,11 +275,18 @@ All pull requests must pass CI checks:
 
 ### Publishing (Maintainers Only)
 
-To publish a new version:
+The package is published to npm as `@mkusaka/wtm`. To publish a new version:
+
 1. Ensure you have `NPM_TOKEN` secret configured in GitHub repository settings
-2. Run `npm version patch/minor/major` to bump version
+2. Run `npm version patch/minor/major` to bump version and create git tag
 3. Push with tags: `git push origin main --follow-tags`
-4. GitHub Actions will automatically publish to npm and create a release
+4. GitHub Actions will automatically:
+   - Run tests across Node.js 18.x, 20.x, and 22.x
+   - Execute linting and type checking
+   - Publish to npm registry
+   - Create a GitHub release with build artifacts
+
+The `prepublishOnly` script ensures the package is always built and tested before publishing.
 
 ## License
 
