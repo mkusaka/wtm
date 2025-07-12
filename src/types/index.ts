@@ -33,6 +33,7 @@ export interface ListCommandOptions {
 
 export interface AddCommandOptions {
   base?: string;
+  shell?: boolean;
 }
 
 export interface RemoveCommandOptions {
