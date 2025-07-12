@@ -24,8 +24,7 @@ pnpm test:coverage     # Run tests with coverage reports (HTML, JSON, text)
 pnpm typecheck
 
 # Linting and formatting
-pnpm lint              # Fast linting with oxc-lint (primary)
-pnpm lint:eslint       # Comprehensive linting with ESLint
+pnpm lint              # Linting with oxc-lint
 pnpm format            # Format code with Prettier
 
 # Development workflow
@@ -101,7 +100,7 @@ pnpm start  # Run tsx watch mode for rapid development
 
 - **TypeScript Configuration**: Strict mode, ES modules, targets ES2022, Node16 module resolution
 - **Testing**: Vitest with mocked Git operations and file system, tests in separate `test/` directory
-- **Dual Linting**: oxc-lint (primary, fast) and ESLint (comprehensive), both configured
+- **Linting**: oxc-lint configured with TypeScript support
 - **Build Output**: TypeScript compiles to `dist/` directory, preserving source structure
 - **UI Framework**: ink (React for CLIs) with @inkjs/ui components and ink-select-input
 - **Interactive Mode**: Default behavior, can be disabled with `--no-interactive` flag
