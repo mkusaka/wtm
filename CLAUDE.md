@@ -18,12 +18,15 @@ pnpm build
 # Run tests
 pnpm test              # Run all tests in CI mode
 pnpm test -- <pattern> # Run specific test files
+pnpm test:coverage     # Run tests with coverage reports (HTML, JSON, text)
 
 # Type checking
 pnpm typecheck
 
-# Linting (uses oxc-lint for fast performance)
-pnpm lint
+# Linting and formatting
+pnpm lint              # Fast linting with oxc-lint (primary)
+pnpm lint:eslint       # Comprehensive linting with ESLint
+pnpm format            # Format code with Prettier
 
 # Development workflow
 pnpm build && node dist/src/bin/wtm.js <command>  # Test CLI locally
@@ -31,6 +34,12 @@ pnpm build && node dist/src/bin/wtm.js <command>  # Test CLI locally
 # Watch mode for development
 pnpm start  # Run tsx watch mode for rapid development
 ```
+
+## Important Requirements
+
+- **Node.js Version**: >=18.0.0 (required for ES modules support)
+- **Package Manager**: pnpm (preferred for workspace support)
+- **Module System**: ES modules (`"type": "module"`) - all imports must use `.js` extensions
 
 ## Architecture
 
@@ -45,6 +54,7 @@ pnpm start  # Run tsx watch mode for rapid development
    - Commands receive typed options from Commander.js
    - All commands check for Git repository before proceeding
    - Exit with `process.exit(1)` on errors
+   - Default action: `wtm` with no arguments launches interactive mode
 
 3. **Git Operations** (`src/utils/git.ts`)
    - `GitWorktreeManager` class wraps simple-git library
@@ -53,23 +63,46 @@ pnpm start  # Run tsx watch mode for rapid development
 
 4. **Hook System** (`src/utils/hook.ts`)
    - Generates `.wt_hook.js` files that run after worktree creation
-   - Executes with environment variables: `WT_WORKTREE_PATH`, `WT_BRANCH_NAME`, `WT_PROJECT_ROOT`
+   - Executes with Node.js spawn, chmod 755, stdio inherited for real-time output
+   - Environment variables: `WT_WORKTREE_PATH`, `WT_BRANCH_NAME`, `WT_PROJECT_ROOT`
    - Default hook copies `.env`, `.env.local`, and `.claude` files
+   - Hook files are git-ignored (included in `.gitignore`)
+   - Exit codes: 0 = success, non-zero = failure with proper error reporting
 
 5. **Interactive UI Components** (`src/components/`)
    - `InteractiveWorktreeSelector.tsx`: Main TUI component using ink (React for CLIs)
    - Real-time filtering with `ink-select-input` for better highlight tracking
-   - Preview pane shows selected worktree details
-   - Keyboard controls: Filter typing, navigation (↑↓), selection (Enter), deletion (Ctrl-D)
+   - Preview pane shows selected worktree details (commit history, branch status)
+   - Keyboard controls: 
+     - Filter: Type to filter worktrees
+     - Navigation: ↑↓ or j/k
+     - Selection: Enter
+     - Deletion: Ctrl-D
+     - Exit: Ctrl-C or Esc
+
+### Command Flow Architecture
+
+1. **List Command Flow**: 
+   - CLI → `list.ts` → `GitWorktreeManager.listWorktrees()` → Interactive UI (default) or plain output
+   - Interactive mode launches `InteractiveWorktreeSelector` component
+
+2. **Add Command Flow**:
+   - CLI → `add.ts` → `GitWorktreeManager.addWorktree()` → Hook execution → Success/error reporting
+   - Creates worktree in timestamp directory, normalizes branch names, executes hook
+
+3. **Remove Command Flow**:
+   - CLI → `remove.ts` → `GitWorktreeManager.removeWorktree()` → Cleanup and reporting
+   - Can be triggered from interactive UI or CLI directly
 
 ### Key Implementation Details
 
-- **TypeScript Configuration**: Strict mode enabled, ES modules, targets ES2022
-- **Testing**: Vitest with mocked Git operations and file system
-- **Linting**: oxc-lint configured to disable common style rules that conflict with the codebase
+- **TypeScript Configuration**: Strict mode, ES modules, targets ES2022, Node16 module resolution
+- **Testing**: Vitest with mocked Git operations and file system, tests in separate `test/` directory
+- **Dual Linting**: oxc-lint (primary, fast) and ESLint (comprehensive), both configured
 - **Build Output**: TypeScript compiles to `dist/` directory, preserving source structure
 - **UI Framework**: ink (React for CLIs) with @inkjs/ui components and ink-select-input
 - **Interactive Mode**: Default behavior, can be disabled with `--no-interactive` flag
+- **Version Management**: Dynamically reads version from package.json at runtime
 
 ### Publishing Workflow
 
@@ -107,7 +140,9 @@ The project uses GitHub Actions for continuous integration and deployment:
 - CLI output uses chalk for colors and ora for progress spinners
 - Commands should provide clear feedback for both success and error cases
 - Type imports use `import type` syntax to avoid runtime overhead
-- Test files mirror source structure and use `.test.ts` extension
+- Test files mirror source structure and use `.test.ts` extension in separate `test/` directory
 - Interactive components use ink (React for CLIs) with hooks and functional components
 - Interactive mode is the default - explicit `--no-interactive` flag to disable
 - Component testing is challenging due to ink's nature - focus on integration tests
+- ES module imports must use `.js` extensions even for TypeScript files
+- Dynamic imports use `import.meta.url` instead of `__dirname`
