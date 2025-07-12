@@ -65,7 +65,7 @@ export async function addCommand(options: AddCommandOptions): Promise<void> {
       if (await hookManager.exists()) {
         try {
           await hookManager.execute(worktreePath, branch);
-        } catch (error: any) {
+        } catch {
           // Silently ignore hook errors in path-only mode
         }
       }
