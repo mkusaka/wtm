@@ -37,7 +37,7 @@ importers:
         specifier: ^24.0.10
         version: 24.0.11
       '@types/react':
-        specifier: ^19.0.0
+        specifier: 19.1.8
         version: 19.1.8
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.36.0
