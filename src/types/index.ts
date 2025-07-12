@@ -32,7 +32,9 @@ export interface ListCommandOptions {
 }
 
 export interface AddCommandOptions {
-  base?: string;
+  branch?: string | boolean;
+  from?: string;
+  pathOnly?: boolean;
 }
 
 export interface RemoveCommandOptions {
@@ -50,6 +52,7 @@ export interface GitWorktreeManagerInterface {
   getStatus(worktreePath: string): Promise<any>;
   getLog(worktreePath: string, limit?: number): Promise<any[]>;
   getProjectRoot(): Promise<string>;
+  listBranches(): Promise<string[]>;
 }
 
 export interface HookManagerInterface {

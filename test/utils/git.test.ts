@@ -94,7 +94,17 @@ detached
   });
 
   describe('addWorktree', () => {
-    it('should create a new worktree with timestamp', async () => {
+    beforeEach(() => {
+      mockGit.branch = vi.fn().mockResolvedValue({
+        all: ['main', 'develop'],
+        branches: {
+          'main': { current: false, name: 'main', commit: 'abc123', label: 'main' },
+          'develop': { current: false, name: 'develop', commit: 'def456', label: 'develop' }
+        }
+      });
+    });
+
+    it('should create a new worktree with timestamp for new branch', async () => {
       const mockDate = new Date('2024-01-15T10:30:45.123Z');
       vi.setSystemTime(mockDate);
       
@@ -121,7 +131,28 @@ detached
       vi.useRealTimers();
     });
 
-    it('should use custom base branch when provided', async () => {
+    it('should checkout existing branch without -b flag', async () => {
+      const mockDate = new Date('2024-01-15T10:30:45.123Z');
+      vi.setSystemTime(mockDate);
+      
+      mockGit.revparse.mockResolvedValue('.git\n');
+      fs.mkdir.mockResolvedValue();
+      mockGit.raw.mockResolvedValue();
+      
+      const result = await gitManager.addWorktree('develop');
+      
+      expect(mockGit.raw).toHaveBeenCalledWith([
+        'worktree',
+        'add',
+        path.resolve('/test/path', '.git/tmp_worktrees/20240115_103045_develop'),
+        'develop'
+      ]);
+      expect(result).toBe(path.resolve('/test/path', '.git/tmp_worktrees/20240115_103045_develop'));
+      
+      vi.useRealTimers();
+    });
+
+    it('should use custom base branch when provided for new branch', async () => {
       mockGit.revparse.mockResolvedValue('.git\n');
       fs.mkdir.mockResolvedValue();
       mockGit.raw.mockResolvedValue();
@@ -238,6 +269,69 @@ branch refs/heads/feature
       const result = await gitManager.getProjectRoot();
       expect(result).toBe('/path/to/project');
       expect(mockGit.revparse).toHaveBeenCalledWith(['--show-toplevel']);
+    });
+  });
+
+  describe('listBranches', () => {
+    it('should list all local branches', async () => {
+      const mockBranchSummary = {
+        all: ['main', 'develop', 'feature/test'],
+        branches: {
+          'main': { current: false, name: 'main', commit: 'abc123', label: 'main' },
+          'develop': { current: false, name: 'develop', commit: 'def456', label: 'develop' },
+          'feature/test': { current: true, name: 'feature/test', commit: 'ghi789', label: 'feature/test' },
+          'remotes/origin/main': { current: false, name: 'remotes/origin/main', commit: 'abc123', label: 'origin/main' }
+        }
+      };
+      
+      mockGit.branch = vi.fn().mockResolvedValue(mockBranchSummary);
+      const result = await gitManager.listBranches();
+      
+      expect(result).toEqual(['develop', 'feature/test', 'main']);
+      expect(mockGit.branch).toHaveBeenCalledWith(['--all']);
+    });
+
+    it('should handle current branch with asterisk', async () => {
+      const mockBranchSummary = {
+        all: ['* main', 'develop'],
+        branches: {
+          '* main': { current: true, name: '* main', commit: 'abc123', label: '* main' },
+          'develop': { current: false, name: 'develop', commit: 'def456', label: 'develop' }
+        }
+      };
+      
+      mockGit.branch = vi.fn().mockResolvedValue(mockBranchSummary);
+      const result = await gitManager.listBranches();
+      
+      expect(result).toEqual(['develop', 'main']);
+    });
+
+    it('should exclude HEAD and remote branches', async () => {
+      const mockBranchSummary = {
+        all: ['main', 'HEAD', 'remotes/origin/main'],
+        branches: {
+          'main': { current: false, name: 'main', commit: 'abc123', label: 'main' },
+          'HEAD': { current: false, name: 'HEAD', commit: 'abc123', label: 'HEAD' },
+          'remotes/origin/main': { current: false, name: 'remotes/origin/main', commit: 'abc123', label: 'origin/main' }
+        }
+      };
+      
+      mockGit.branch = vi.fn().mockResolvedValue(mockBranchSummary);
+      const result = await gitManager.listBranches();
+      
+      expect(result).toEqual(['main']);
+    });
+
+    it('should handle empty branches object', async () => {
+      const mockBranchSummary = {
+        all: [],
+        branches: undefined
+      };
+      
+      mockGit.branch = vi.fn().mockResolvedValue(mockBranchSummary);
+      const result = await gitManager.listBranches();
+      
+      expect(result).toEqual([]);
     });
   });
 });
