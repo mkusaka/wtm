@@ -94,13 +94,17 @@ detached
   });
 
   describe('addWorktree', () => {
-    it('should create a new worktree with timestamp', async () => {
+    it('should create a new worktree with timestamp and .wt_env file', async () => {
       const mockDate = new Date('2024-01-15T10:30:45.123Z');
       vi.setSystemTime(mockDate);
       
       mockGit.revparse.mockResolvedValue('.git\n');
       fs.mkdir.mockResolvedValue();
+      fs.writeFile.mockResolvedValue();
       mockGit.raw.mockResolvedValue();
+      
+      // Mock getProjectRoot to return the expected path
+      vi.spyOn(gitManager, 'getProjectRoot').mockResolvedValue('/test/path');
       
       const result = await gitManager.addWorktree('feature-branch');
       
@@ -116,6 +120,24 @@ detached
         path.resolve('/test/path', '.git/tmp_worktrees/20240115_103045_feature-branch'),
         'HEAD'
       ]);
+      
+      // Check .wt_env file creation
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        path.resolve('/test/path', '.git/tmp_worktrees/20240115_103045_feature-branch/.wt_env'),
+        expect.stringContaining('WT_ROOT_DIR="/test/path"'),
+        'utf-8'
+      );
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.stringContaining('WT_BRANCH_NAME="feature-branch"'),
+        'utf-8'
+      );
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.stringContaining('WT_BASE_BRANCH="HEAD"'),
+        'utf-8'
+      );
+      
       expect(result).toBe(path.resolve('/test/path', '.git/tmp_worktrees/20240115_103045_feature-branch'));
       
       vi.useRealTimers();
@@ -124,12 +146,23 @@ detached
     it('should use custom base branch when provided', async () => {
       mockGit.revparse.mockResolvedValue('.git\n');
       fs.mkdir.mockResolvedValue();
+      fs.writeFile.mockResolvedValue();
       mockGit.raw.mockResolvedValue();
+      
+      // Mock getProjectRoot to return the expected path
+      vi.spyOn(gitManager, 'getProjectRoot').mockResolvedValue('/test/path');
       
       await gitManager.addWorktree('feature-branch', 'develop');
       
       expect(mockGit.raw).toHaveBeenCalledWith(
         expect.arrayContaining(['worktree', 'add', '-b', 'feature-branch', expect.any(String), 'develop'])
+      );
+      
+      // Check .wt_env file has correct base branch
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.stringContaining('WT_BASE_BRANCH="develop"'),
+        'utf-8'
       );
     });
   });

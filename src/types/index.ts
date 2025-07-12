@@ -39,6 +39,11 @@ export interface RemoveCommandOptions {
   force?: boolean;
 }
 
+export interface RootCommandOptions {
+  json?: boolean;
+  verbose?: boolean;
+}
+
 export interface GitWorktreeManagerInterface {
   git: SimpleGit;
   cwd: string;

@@ -6,6 +6,7 @@ import { listCommand } from './commands/list.js';
 import { addCommand } from './commands/add.js';
 import { removeCommand } from './commands/remove.js';
 import { initCommand } from './commands/init.js';
+import { rootCommand } from './commands/root.js';
 
 // Read version from package.json
 const __filename = fileURLToPath(import.meta.url);
@@ -40,6 +41,13 @@ program
   .command('init')
   .description('Initialize hook file in current repository')
   .action(initCommand);
+
+program
+  .command('root')
+  .description('Show the main repository path (use with: cd "$(wtm root)")')
+  .option('-j, --json', 'Output in JSON format')
+  .option('-v, --verbose', 'Show detailed information about worktree status')
+  .action(rootCommand);
 
 // Set default action to interactive list
 program

@@ -140,4 +140,5 @@ vite.config.ts.timestamp-*
 
 # worktree manager specific
 .wt_hook.js
+.wt_env
 .DS_Store
