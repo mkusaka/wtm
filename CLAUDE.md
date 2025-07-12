@@ -68,6 +68,9 @@ pnpm start  # Run tsx watch mode for rapid development
    - Default hook copies `.env`, `.env.local`, and `.claude` files
    - Hook files are git-ignored (included in `.gitignore`)
    - Exit codes: 0 = success, non-zero = failure with proper error reporting
+   - **Library Support**: Hooks can use libraries installed in the parent project (e.g., `zx`, `glob`)
+     - The parent project's `node_modules` is automatically added to `NODE_PATH`
+     - Simply import and use: `import { $ } from 'zx'` or `import { glob } from 'glob'`
 
 5. **Interactive UI Components** (`src/components/`)
    - `InteractiveWorktreeSelector.tsx`: Main TUI component using ink (React for CLIs)

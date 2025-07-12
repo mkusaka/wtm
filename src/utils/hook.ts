@@ -26,11 +26,23 @@ export class HookManager implements HookManagerInterface {
       return false;
     }
 
+    // Create NODE_PATH that includes both parent project and worktree node_modules
+    const nodePaths = [
+      path.join(this.projectRoot, 'node_modules'),
+      path.join(worktreePath, 'node_modules')
+    ];
+    
+    // Add existing NODE_PATH if any
+    if (process.env.NODE_PATH) {
+      nodePaths.push(process.env.NODE_PATH);
+    }
+
     const env = {
       ...process.env,
       WT_WORKTREE_PATH: worktreePath,
       WT_BRANCH_NAME: branchName,
-      WT_PROJECT_ROOT: this.projectRoot
+      WT_PROJECT_ROOT: this.projectRoot,
+      NODE_PATH: nodePaths.join(path.delimiter)
     };
 
     return new Promise((resolve, reject) => {
@@ -59,10 +71,18 @@ export class HookManager implements HookManagerInterface {
 // - WT_WORKTREE_PATH: Path to the new worktree
 // - WT_BRANCH_NAME: Name of the new branch
 // - WT_PROJECT_ROOT: Path to the main project root
+// - NODE_PATH: Includes parent project's node_modules (libraries available)
 
 import fs from 'fs/promises';
 import path from 'path';
 
+// Example: Using zx for shell commands (if installed in parent project)
+// import { $ } from 'zx';
+
+// Example: Using glob for pattern matching (if installed in parent project)
+// import { glob } from 'glob';
+
+// Default items to copy
 const copyItems = ['.env', '.env.local', '.claude'];
 
 async function copyFile(source, dest) {
@@ -101,7 +121,10 @@ async function copyDirectory(source, dest) {
 
 async function main() {
   console.log('Running worktree hook...');
+  console.log(\`Worktree: \${process.env.WT_WORKTREE_PATH}\`);
+  console.log(\`Branch: \${process.env.WT_BRANCH_NAME}\`);
   
+  // Copy configuration files
   for (const item of copyItems) {
     const sourcePath = path.join(process.env.WT_PROJECT_ROOT, item);
     const destPath = path.join(process.env.WT_WORKTREE_PATH, item);
@@ -117,6 +140,26 @@ async function main() {
       // Item doesn't exist, skip it
     }
   }
+
+  // Example: Using zx to install dependencies
+  // try {
+  //   await $\`pnpm install\`;
+  //   console.log('Dependencies installed');
+  // } catch (error) {
+  //   console.error('Failed to install dependencies:', error);
+  // }
+
+  // Example: Using glob to copy all config files
+  // const configFiles = await glob('config/*.json', { 
+  //   cwd: process.env.WT_PROJECT_ROOT 
+  // });
+  // for (const file of configFiles) {
+  //   const source = path.join(process.env.WT_PROJECT_ROOT, file);
+  //   const dest = path.join(process.env.WT_WORKTREE_PATH, file);
+  //   await fs.mkdir(path.dirname(dest), { recursive: true });
+  //   await fs.copyFile(source, dest);
+  //   console.log(\`Copied \${file}\`);
+  // }
   
   console.log('Hook completed successfully');
 }
