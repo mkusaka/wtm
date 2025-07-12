@@ -77,7 +77,17 @@ export class GitWorktreeManager implements GitWorktreeManagerInterface {
     const dirName = `${timestamp}_${branch}`;
     const worktreePath = path.join(tmpDir, dirName);
     
-    await this.git.raw(['worktree', 'add', '-b', branch, worktreePath, baseBranch]);
+    // Check if the branch already exists
+    const branches = await this.listBranches();
+    const branchExists = branches.includes(branch);
+    
+    if (branchExists) {
+      // If branch exists, just check it out in the new worktree
+      await this.git.raw(['worktree', 'add', worktreePath, branch]);
+    } else {
+      // If branch doesn't exist, create it from baseBranch
+      await this.git.raw(['worktree', 'add', '-b', branch, worktreePath, baseBranch]);
+    }
     
     // Create .wt_env file with worktree metadata
     const projectRoot = await this.getProjectRoot();
@@ -127,5 +137,24 @@ export class GitWorktreeManager implements GitWorktreeManagerInterface {
   async getProjectRoot(): Promise<string> {
     const toplevel = await this.git.revparse(['--show-toplevel']);
     return toplevel.trim();
+  }
+
+  async listBranches(): Promise<string[]> {
+    const branchSummary = await this.git.branch(['--all']);
+    const branches: string[] = [];
+    
+    // Include local branches
+    branchSummary.branches && Object.entries(branchSummary.branches).forEach(([name, _info]) => {
+      // Skip remotes branches for now
+      if (!name.startsWith('remotes/')) {
+        // Remove any prefix like '* ' for current branch
+        const cleanName = name.replace(/^\*\s*/, '');
+        if (cleanName && cleanName !== 'HEAD') {
+          branches.push(cleanName);
+        }
+      }
+    });
+    
+    return branches.sort();
   }
 }

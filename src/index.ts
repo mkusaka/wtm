@@ -26,9 +26,11 @@ program
   .action(listCommand);
 
 program
-  .command('add <branch>')
+  .command('add')
   .description('Create a new worktree')
-  .option('-b, --base <branch>', 'Base branch to create from', 'HEAD')
+  .option('-b, --branch [branch]', 'Branch name for the new worktree (interactive if not specified)')
+  .option('--from <branch>', 'Base branch to create from', 'HEAD')
+  .option('--path-only', 'Output only the worktree path (useful for shell functions)')
   .option('-s, --shell', 'Launch a new shell in the worktree directory')
   .action(addCommand);
 
