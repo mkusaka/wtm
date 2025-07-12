@@ -29,6 +29,7 @@ program
   .command('add <branch>')
   .description('Create a new worktree')
   .option('-b, --base <branch>', 'Base branch to create from', 'HEAD')
+  .option('-s, --shell', 'Launch a new shell in the worktree directory')
   .action(addCommand);
 
 program
