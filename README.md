@@ -79,17 +79,46 @@ wtm list --json           # JSON format (automatically disables interactive mode
 
 ### Create a new worktree
 ```bash
-wtm add feature-branch              # Create from HEAD
-wtm add feature-branch -b develop   # Create from specific branch
+wtm add                            # Interactive branch selection
+wtm add -b feature-branch          # Create worktree for specific branch
+wtm add -b                         # Interactive branch selection (same as wtm add)
+wtm add --from develop -b feature  # Create 'feature' branch from 'develop'
+wtm add -b feature --path-only     # Output only the worktree path (for shell integration)
+wtm add -b feature --shell         # Create worktree and launch new shell in it
 ```
 
 The worktree will be created at `.git/tmp_worktrees/YYYYMMDD_HHMMSS_feature-branch/`
+
+#### Shell Integration Examples
+```bash
+# Navigate to new worktree immediately
+cd "$(wtm add -b feature --path-only)"
+
+# Create alias for quick worktree creation and navigation
+alias wta='cd "$(wtm add --path-only -b"'
+# Usage: wta feature-branch
+```
 
 ### Remove a worktree
 ```bash
 wtm remove feature-branch      # Interactive confirmation
 wtm remove feature-branch -f   # Force removal without confirmation
 ```
+
+### Navigate to main repository
+```bash
+wtm root                       # Output main repository path
+wtm root --verbose            # Show detailed worktree information
+wtm root --json              # Output in JSON format for programmatic use
+
+# Shell integration - navigate to main repo from any worktree
+cd "$(wtm root)"
+
+# Create an alias for quick navigation
+alias wh='cd "$(wtm root)"'  # "worktree home"
+```
+
+The `root` command helps you quickly navigate back to the main repository from any worktree. It automatically detects the main repository path using `.wt_env` files created in worktrees for faster resolution.
 
 ### Initialize hook file
 ```bash
@@ -128,6 +157,33 @@ async function main() {
   await execAsync('pnpm install', { cwd: process.env.WT_WORKTREE_PATH });
 }
 ```
+
+### Using External Libraries in Hooks
+Hooks can use any npm packages installed in your parent project without requiring separate installations:
+
+```javascript
+// The parent project's node_modules is automatically available
+import { $ } from 'zx';  // If zx is installed in parent project
+import { glob } from 'glob';  // If glob is installed in parent project
+
+// Example: Advanced hook using external libraries
+console.log(`Setting up worktree at: ${process.env.WT_WORKTREE_PATH}`);
+console.log(`Branch name: ${process.env.WT_BRANCH_NAME}`);
+
+// Use zx for shell commands
+await $`cd ${process.env.WT_WORKTREE_PATH} && pnpm install`;
+
+// Use glob to find and copy configuration files
+const configFiles = await glob('config/*.json', { 
+  cwd: process.env.WT_PROJECT_ROOT 
+});
+
+for (const file of configFiles) {
+  await $`cp ${process.env.WT_PROJECT_ROOT}/${file} ${process.env.WT_WORKTREE_PATH}/${file}`;
+}
+```
+
+This feature enables powerful automation workflows by leveraging the full npm ecosystem without bloating individual worktrees with dependencies.
 
 ## Development
 
@@ -217,11 +273,14 @@ Options:
 - `-j, --json`: Output in JSON format (automatically disables interactive mode)
 - `--no-interactive`: Disable interactive mode and show simple list
 
-#### `wtm add <branch>`
-Creates a new worktree for the specified branch.
+#### `wtm add`
+Creates a new worktree with interactive branch selection or specified branch.
 
 Options:
-- `-b, --base <branch>`: Base branch to create from (default: HEAD)
+- `-b, --branch [branch]`: Branch name for the new worktree (interactive if not specified)
+- `--from <branch>`: Base branch to create from (default: HEAD)
+- `--path-only`: Output only the worktree path (useful for shell functions)
+- `-s, --shell`: Launch a new shell in the worktree directory
 
 #### `wtm remove <branch>`
 Removes the worktree and deletes the associated branch.
@@ -231,6 +290,13 @@ Options:
 
 #### `wtm init`
 Creates a `.wt_hook.js` template in the repository root.
+
+#### `wtm root`
+Shows the main repository path, useful for navigation from worktrees.
+
+Options:
+- `-j, --json`: Output in JSON format
+- `-v, --verbose`: Show detailed information about worktree status
 
 ## Troubleshooting
 
