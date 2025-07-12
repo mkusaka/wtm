@@ -201,8 +201,7 @@ pnpm test:coverage     # Run tests with coverage reports
 pnpm typecheck
 
 # Linting and formatting
-pnpm lint              # Fast linting with oxc-lint
-pnpm lint:eslint       # Comprehensive linting with ESLint
+pnpm lint              # Linting with oxc-lint
 pnpm format            # Format code with Prettier
 
 # Build and run
