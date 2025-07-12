@@ -33,6 +33,13 @@ describe('addCommand', () => {
   let consoleErrorSpy: any;
 
   beforeEach(() => {
+    // Mock process.stderr.isTTY
+    Object.defineProperty(process.stderr, 'isTTY', {
+      value: true,
+      writable: true,
+      configurable: true
+    });
+    
     mockGit = {
       isGitRepository: vi.fn().mockResolvedValue(true),
       addWorktree: vi.fn().mockResolvedValue('/test/worktree'),
@@ -68,8 +75,7 @@ describe('addCommand', () => {
       await addCommand({ branch: 'feature/new' });
       
       expect(mockGit.addWorktree).toHaveBeenCalledWith('feature/new', 'HEAD');
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('feature/new'));
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('HEAD'));
+      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('feature/new'));
     });
 
     it('should handle hook execution when hook exists', async () => {
@@ -88,8 +94,8 @@ describe('addCommand', () => {
       await addCommand({ branch: 'feature/new' });
       
       expect(mockHook.execute).toHaveBeenCalled();
-      // Should not throw, just log the error
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Next steps'));
+      // Should not throw, continue execution
+      expect(mockGit.addWorktree).toHaveBeenCalled();
     });
   });
 

@@ -111,8 +111,8 @@ export async function addCommand(options: AddCommandOptions): Promise<void> {
         } catch (error: any) {
           console.error(chalk.red(`Failed to launch shell: ${error.message}`));
         }
-      } else {
-        // Output just the path to stdout for shell integration
+      } else if (quiet && !options.pathOnly) {
+        // Output just the path to stdout for shell integration in quiet mode
         console.log(worktreePath);
       }
     }
