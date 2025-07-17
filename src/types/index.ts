@@ -59,6 +59,7 @@ export interface GitWorktreeManagerInterface {
   getLog(worktreePath: string, limit?: number): Promise<any[]>;
   getProjectRoot(): Promise<string>;
   listBranches(): Promise<string[]>;
+  revParse(args: string[]): Promise<string>;
 }
 
 export interface HookManagerInterface {
