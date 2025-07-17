@@ -157,4 +157,9 @@ export class GitWorktreeManager implements GitWorktreeManagerInterface {
     
     return branches.sort();
   }
+
+  async revParse(args: string[]): Promise<string> {
+    const result = await this.git.revparse(args);
+    return result.trim();
+  }
 }

@@ -48,8 +48,6 @@ program
 program
   .command('root')
   .description('Show the main repository path (use with: cd "$(wtm root)")')
-  .option('-j, --json', 'Output in JSON format')
-  .option('-v, --verbose', 'Show detailed information about worktree status')
   .action(rootCommand);
 
 // Set default action to interactive list
