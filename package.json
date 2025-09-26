@@ -42,7 +42,7 @@
     "ink-testing-library": "4.0.0",
     "oxlint": "1.6.0",
     "prettier": "3.6.2",
-    "tsx": "4.20.3",
+    "tsx": "4.20.6",
     "typescript": "5.8.3",
     "vitest": "3.2.4"
   },
