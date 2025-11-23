@@ -1,0 +1,503 @@
+use anyhow::{Context, Result};
+use chrono::{Local, TimeZone};
+use clap::Parser;
+use git2::{Repository, StatusOptions};
+use rayon::prelude::*;
+use skim::prelude::*;
+use skim::FuzzyAlgorithm;
+use std::borrow::Cow;
+use std::path::Path;
+use std::sync::Arc;
+use std::thread;
+
+#[derive(Parser, Debug)]
+#[command(
+    author,
+    version,
+    about = "Interactive worktree selector with real-time updates"
+)]
+struct Args {
+    /// Show preview panel
+    #[arg(long)]
+    preview: bool,
+
+    /// Action to perform (cd, remove)
+    #[arg(long, default_value = "cd")]
+    action: String,
+}
+
+#[derive(Debug, Clone)]
+struct WorktreeItem {
+    branch: String,
+    path: String,
+    dirname: String,
+    updated_relative: String,
+    display_text: String,
+    matching_ranges: Vec<(usize, usize)>,
+}
+
+impl WorktreeItem {
+    fn new(branch: String, path: String, dirname: String, updated_relative: String) -> Self {
+        // Build the display string once so `text()` and highlighting stay consistent.
+        let updated_col = format!("{:<10}", updated_relative);
+        let branch_col = format!("{:<40}", branch);
+        let display_text = format!("{updated_col} {branch_col} {dirname}");
+
+        // Describe the byte ranges we want skim to match against.
+        // This allows ^prefix to anchor to the branch/dirname columns instead of the first column.
+        let updated_range = (0, updated_col.len());
+        let branch_start = updated_col.len() + 1;
+        let branch_range = (branch_start, branch_start + branch.len());
+        let dirname_start = branch_start + branch_col.len() + 1;
+        let dirname_range = (dirname_start, display_text.len());
+
+        Self {
+            branch,
+            path,
+            dirname,
+            updated_relative,
+            display_text,
+            matching_ranges: vec![updated_range, branch_range, dirname_range],
+        }
+    }
+}
+
+impl SkimItem for WorktreeItem {
+    fn text(&self) -> Cow<str> {
+        Cow::Borrowed(&self.display_text)
+    }
+
+    fn display<'a>(&'a self, context: DisplayContext<'a>) -> AnsiString<'a> {
+        // Use the context directly for proper highlighting
+        AnsiString::from(context)
+    }
+
+    fn get_matching_ranges(&self) -> Option<&[(usize, usize)]> {
+        Some(&self.matching_ranges)
+    }
+
+    fn preview(&self, _context: PreviewContext) -> ItemPreview {
+        // Generate preview using git2 API data wrapped in shell for formatting
+        let preview_result = generate_preview(&self.branch, &self.path);
+        ItemPreview::Text(preview_result.unwrap_or_else(|e| format!("Error generating preview: {}", e)))
+    }
+}
+
+fn generate_preview(branch: &str, path: &str) -> Result<String> {
+    let mut output = String::new();
+
+    // Header info
+    output.push_str(&format!("🌳 Branch: {}\n\n", branch));
+    output.push_str(&format!("📁 Path: {}\n\n", path));
+
+    // Open repository
+    if let Ok(repo) = Repository::open(path) {
+        // Get last commit info
+        if let Ok(head) = repo.head() {
+            if let Ok(commit) = head.peel_to_commit() {
+                let timestamp = commit.time().seconds();
+                let dt = Local.timestamp_opt(timestamp, 0).single().unwrap_or_else(Local::now);
+                let relative = format_relative_time(&dt);
+                let summary = commit.summary().unwrap_or("No message");
+                output.push_str(&format!("🕐 Last commit: {}: {}\n\n", relative, summary));
+            }
+        }
+
+        // Get status
+        output.push_str("📝 Changed files:\n");
+        output.push_str("───────────────────────────────────────────────────\n");
+
+        let mut status_opts = StatusOptions::new();
+        status_opts.include_untracked(true);
+
+        if let Ok(statuses) = repo.statuses(Some(&mut status_opts)) {
+            if statuses.is_empty() {
+                output.push_str("  ✨ Working tree clean\n");
+            } else {
+                for entry in statuses.iter().take(10) {
+                    let status = entry.status();
+                    let path = entry.path().unwrap_or("?");
+
+                    let status_char = if status.is_wt_new() || status.is_index_new() {
+                        "A"
+                    } else if status.is_wt_modified() || status.is_index_modified() {
+                        "M"
+                    } else if status.is_wt_deleted() || status.is_index_deleted() {
+                        "D"
+                    } else if status.is_wt_renamed() || status.is_index_renamed() {
+                        "R"
+                    } else if status.is_conflicted() {
+                        "C"
+                    } else {
+                        "?"
+                    };
+
+                    output.push_str(&format!("  {} {}\n", status_char, path));
+                }
+
+                let total = statuses.len();
+                if total > 10 {
+                    output.push_str(&format!("  ... and {} more\n", total - 10));
+                }
+            }
+        }
+        output.push_str("\n");
+
+        // Get recent commits
+        output.push_str("📜 Recent commits:\n");
+        output.push_str("───────────────────────────────────────────────────\n");
+
+        if let Ok(mut revwalk) = repo.revwalk() {
+            let _ = revwalk.push_head();
+
+            for oid in revwalk.take(10) {
+                if let Ok(oid) = oid {
+                    if let Ok(commit) = repo.find_commit(oid) {
+                        let id_str = &oid.to_string()[..7];
+                        let summary = commit.summary().unwrap_or("No message");
+                        output.push_str(&format!("  {} {}\n", id_str, summary));
+                    }
+                }
+            }
+        }
+    } else {
+        output.push_str("Error: Cannot access worktree\n");
+    }
+
+    Ok(output)
+}
+
+fn format_relative_time(dt: &chrono::DateTime<Local>) -> String {
+    let now = Local::now();
+    let duration = now.signed_duration_since(*dt);
+
+    if duration.num_days() > 0 {
+        format!("{}d ago", duration.num_days())
+    } else if duration.num_hours() > 0 {
+        format!("{}h ago", duration.num_hours())
+    } else if duration.num_minutes() > 0 {
+        format!("{}m ago", duration.num_minutes())
+    } else {
+        "now".to_string()
+    }
+}
+
+fn get_last_commit_info(path: &str) -> (Option<i64>, String) {
+    let repo = match Repository::open(path) {
+        Ok(r) => r,
+        Err(_) => return (None, "unknown".to_string()),
+    };
+
+    let head = match repo.head() {
+        Ok(h) => h,
+        Err(_) => return (None, "unknown".to_string()),
+    };
+
+    let commit = match head.peel_to_commit() {
+        Ok(c) => c,
+        Err(_) => return (None, "unknown".to_string()),
+    };
+
+    let timestamp = commit.time().seconds();
+    let dt = Local
+        .timestamp_opt(timestamp, 0)
+        .single()
+        .unwrap_or_else(Local::now);
+
+    let relative_time = format_relative_time(&dt);
+    (Some(timestamp), relative_time)
+}
+
+fn get_dirname(path: &str) -> String {
+    Path::new(path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(path)
+        .to_string()
+}
+
+fn collect_worktrees() -> Result<Vec<(String, String)>> {
+    // Find the main repository first
+    let current_repo = Repository::open_from_env()
+        .or_else(|_| Repository::discover("."))
+        .context("Failed to open git repository")?;
+
+    // Get the common git directory (handles both regular repos and worktrees)
+    let git_common_dir = current_repo.path().parent()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get repository parent directory"))?;
+
+    // For worktrees, we need to go up one more level to get the main repo
+    let main_repo_path = if git_common_dir.ends_with(".git/worktrees") {
+        git_common_dir.parent()
+            .and_then(|p| p.parent())
+            .ok_or_else(|| anyhow::anyhow!("Failed to get main repository path"))?
+    } else if git_common_dir.ends_with(".git") {
+        git_common_dir.parent()
+            .ok_or_else(|| anyhow::anyhow!("Failed to get repository parent"))?
+    } else {
+        git_common_dir
+    };
+
+    let main_repo = Repository::open(main_repo_path)
+        .context("Failed to open main repository")?;
+
+    let mut worktrees = Vec::new();
+
+    // Add the main repository
+    if let Ok(head) = main_repo.head() {
+        if let Some(name) = head.shorthand() {
+            let path = main_repo_path.to_string_lossy().to_string();
+            worktrees.push((name.to_string(), path));
+        }
+    }
+
+    // Get worktrees directory
+    let worktrees_dir = main_repo.path().join("worktrees");
+
+    if worktrees_dir.exists() {
+        // Read each worktree
+        if let Ok(entries) = std::fs::read_dir(&worktrees_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let gitdir_path = entry.path().join("gitdir");
+
+                // Read the gitdir file to get the actual worktree path
+                if let Ok(gitdir_content) = std::fs::read_to_string(&gitdir_path) {
+                    let worktree_path = gitdir_content.trim();
+
+                    // Clean up the path - remove .git at the end if present
+                    let worktree_path = if worktree_path.ends_with("/.git") {
+                        &worktree_path[..worktree_path.len() - 5]
+                    } else {
+                        worktree_path
+                    };
+
+                    // Open the worktree to get its branch
+                    if let Ok(wt_repo) = Repository::open(worktree_path) {
+                        if let Ok(head) = wt_repo.head() {
+                            if let Some(branch_name) = head.shorthand() {
+                                worktrees.push((branch_name.to_string(), worktree_path.to_string()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(worktrees)
+}
+
+fn remove_worktree(branch: &str, path: &str) -> Result<()> {
+    // Open the worktree repository
+    let repo = Repository::open(path)
+        .context("Failed to open worktree repository")?;
+
+    // Get the main repository path
+    let git_common_dir = repo.path().parent()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get repository parent directory"))?;
+
+    let main_repo_path = if git_common_dir.ends_with(".git/worktrees") {
+        git_common_dir.parent()
+            .and_then(|p| p.parent())
+            .ok_or_else(|| anyhow::anyhow!("Failed to get main repository path"))?
+    } else {
+        git_common_dir
+    };
+
+    // Remove the worktree directory
+    eprintln!("Removing worktree: {} ({})", branch, path);
+    std::fs::remove_dir_all(path)
+        .context("Failed to remove worktree directory")?;
+
+    // Remove the administrative files in .git/worktrees
+    let worktree_name = Path::new(path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Failed to get worktree name"))?;
+
+    let admin_dir = main_repo_path.join(".git/worktrees").join(worktree_name);
+    if admin_dir.exists() {
+        std::fs::remove_dir_all(&admin_dir)
+            .context("Failed to remove worktree admin directory")?;
+    }
+
+    // Delete the branch
+    let main_repo = Repository::open(main_repo_path)
+        .context("Failed to open main repository")?;
+
+    if let Ok(mut branch_ref) = main_repo.find_branch(branch, git2::BranchType::Local) {
+        branch_ref.delete()
+            .context("Failed to delete branch")?;
+        eprintln!("Deleted branch: {}", branch);
+    }
+
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    let args = Args::parse();
+
+    // Collect basic worktree info
+    let worktrees = collect_worktrees()?;
+
+    // Create a channel for sending items to skim
+    let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
+
+    // Process worktrees in parallel and send to skim as they're ready
+    thread::spawn(move || {
+        // Collect all items first
+        let mut all_items: Vec<(i64, Arc<WorktreeItem>)> = worktrees
+            .into_par_iter()
+            .map(|(branch, path)| {
+                let (timestamp, relative_time) = get_last_commit_info(&path);
+                let timestamp_val = timestamp.unwrap_or(0);
+                let dirname = get_dirname(&path);
+
+                let item = Arc::new(WorktreeItem::new(
+                    branch,
+                    path.clone(),
+                    dirname,
+                    relative_time,
+                ));
+
+                (-timestamp_val, item)
+            })
+            .collect();
+
+        // Sort by timestamp (descending)
+        all_items.sort_by_key(|(ts, _)| *ts);
+
+        // Send all sorted items once
+        for (_, item) in all_items {
+            let _ = tx_item.send(item as Arc<dyn SkimItem>);
+        }
+
+        // Signal completion
+        drop(tx_item);
+    });
+
+    // Configure skim options using builder for better control
+    let options = SkimOptionsBuilder::default()
+        .height("80%".to_string())
+        .multi(false)
+        .prompt("🔍 Select worktree > ".to_string())
+        .preview_window(if args.preview {
+            "right:60%:wrap".to_string()
+        } else {
+            "hidden".to_string()
+        })
+        .header(Some("🌲 Git Worktree Manager | Tips: ^prefix for start match, 'exact for exact match\n──────────────────────────────────────────────────────────────────────────\nUpdated    Branch                                   Directory".to_string()))
+        .ansi(true)  // REQUIRED for colored highlights
+        .regex(false)  // IMPORTANT: extended search with ' ^ ! etc.
+        .exact(false)  // Start fuzzy; ' toggles exact
+        .algorithm(FuzzyAlgorithm::SkimV2)  // Be explicit about algorithm
+        // Color scheme for highlights
+        .color(Some("matched:bg:yellow,matched:fg:black".to_string()))
+        .build()
+        .unwrap();
+
+    // Run skim
+    let selected = Skim::run_with(&options, Some(rx_item))
+        .map(|out| out.selected_items)
+        .unwrap_or_default();
+
+    // Process selection
+    if !selected.is_empty() {
+        // Get the selected item
+        let selected_item = &selected[0];
+
+        // Try to downcast to our WorktreeItem type to get the full path
+        if let Some(item) = selected_item.as_any().downcast_ref::<WorktreeItem>() {
+            let branch = item.branch.as_str();
+            let path = item.path.as_str();
+
+            match args.action.as_str() {
+                "cd" => {
+                    // Output path for shell to cd
+                    println!("{path}");
+                }
+                "remove" => {
+                    // Remove worktree and branch
+                    remove_worktree(branch, path)?;
+                }
+                _ => {
+                    eprintln!("Unknown action: {}", args.action);
+                }
+            }
+        } else {
+            eprintln!("Error: Could not get item details");
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_worktree_item_text_format() {
+        let item = WorktreeItem::new(
+            "feature-branch".to_string(),
+            "/path/to/worktree".to_string(),
+            "worktree".to_string(),
+            "2h ago".to_string(),
+        );
+
+        // text() now returns formatted display string
+        let text = item.text();
+        // Format: "{:<10} {:<40} {}"
+        assert!(text.contains("2h ago"));
+        assert!(text.contains("feature-branch"));
+        assert!(text.contains("worktree"));
+    }
+
+    #[test]
+    fn test_search_format_vs_display_format() {
+        let item = WorktreeItem::new(
+            "feature-branch".to_string(),
+            "/path/to/worktree".to_string(),
+            "worktree".to_string(),
+            "2h ago".to_string(),
+        );
+
+        // text() and display() now use the same format
+        let text = item.text();
+
+        // Should be formatted with fixed widths
+        assert!(text.starts_with("2h ago"));
+        assert!(text.contains("feature-branch"));
+        assert!(text.contains("worktree"));
+    }
+
+    #[test]
+    fn test_display_alignment() {
+        // Test various branch name lengths
+        let test_cases = vec![
+            ("main", "2h ago", "project"),
+            (
+                "feature-very-long-branch-name-that-exceeds-40-chars",
+                "10d ago",
+                "my-workspace",
+            ),
+            ("fix", "now", "dir"),
+        ];
+
+        for (branch, updated, dirname) in test_cases {
+            let item = WorktreeItem::new(
+                branch.to_string(),
+                format!("/path/to/{dirname}"),
+                dirname.to_string(),
+                updated.to_string(),
+            );
+
+            // Verify the text format has fixed-width columns
+            let search_text = item.text();
+            // Format is now: updated (10 chars) | branch (40 chars) | dirname
+            assert!(search_text.starts_with(&item.updated_relative));
+            assert!(search_text.contains(&item.branch));
+            assert!(search_text.contains(&item.dirname));
+        }
+    }
+}

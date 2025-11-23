@@ -1,0 +1,3 @@
+[workspace]
+members = ["wtm-select"]
+resolver = "2"

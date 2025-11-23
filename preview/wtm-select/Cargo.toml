@@ -1,0 +1,12 @@
+[package]
+name = "wtm-select"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.100"
+chrono = "0.4.42"
+clap = { version = "4.5.53", features = ["derive"] }
+git2 = "0.19.0"
+rayon = "1.11.0"
+skim = "0.20.5"
