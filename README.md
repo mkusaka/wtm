@@ -19,7 +19,7 @@ A comprehensive git worktree management tool with interactive selection and Rust
 ```bash
 # Clone the repository
 git clone https://github.com/mkusaka/wtm.git
-cd wtm/preview
+cd wtm
 
 # Install wtm-select to your PATH
 cargo install --path wtm-select
@@ -31,7 +31,7 @@ Add to your `.zshrc`:
 
 ```bash
 # Adjust the path to where you cloned the repository
-source ~/path/to/wtm/preview/wt.sh
+source ~/path/to/wtm/wt.sh
 ```
 
 ## Usage

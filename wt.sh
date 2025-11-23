@@ -11,7 +11,7 @@ wt() {
             # Default: interactive selection with wtm-select (skim-based)
             if ! command -v wtm-select &> /dev/null; then
                 echo "Error: wtm-select not found. Please install it first:"
-                echo "  cargo install --path /path/to/wtm/preview/wtm-select"
+                echo "  cargo install --path /path/to/wtm/wtm-select"
                 return 1
             fi
             local selected_path=$(wtm-select --preview)
