@@ -46,26 +46,41 @@ wt() {
             fi
 
             # Decide whether to create new branch or use existing
+            local worktree_result=0
             if [[ "$force_new" = true ]]; then
                 # Force create new branch
                 git worktree add -b "$branch_name" "$worktree_path"
+                worktree_result=$?
             elif [[ "$branch_exists" = true ]]; then
                 # Use existing branch
-                echo "Using existing branch: $branch_name"
-                if git show-ref --verify --quiet refs/heads/"$branch_name"; then
+                local local_exists=false
+                local remote_exists=false
+                git show-ref --verify --quiet refs/heads/"$branch_name" && local_exists=true
+                git show-ref --verify --quiet refs/remotes/origin/"$branch_name" && remote_exists=true
+
+                if [[ "$local_exists" = true ]]; then
                     # Local branch exists
+                    echo "Using existing local branch: $branch_name"
                     git worktree add "$worktree_path" "$branch_name"
+                    worktree_result=$?
+                elif [[ "$remote_exists" = true ]]; then
+                    # Only remote branch exists - create local tracking branch
+                    echo "Creating local branch from remote: $branch_name"
+                    git worktree add --track -b "$branch_name" "$worktree_path" "origin/$branch_name"
+                    worktree_result=$?
                 else
-                    # Only remote branch exists
-                    git worktree add -b "$branch_name" "$worktree_path" "origin/$branch_name"
+                    # Should not reach here, but handle gracefully
+                    echo "Error: Branch '$branch_name' not found"
+                    return 1
                 fi
             else
                 # Create new branch
                 echo "Creating new branch: $branch_name"
                 git worktree add -b "$branch_name" "$worktree_path"
+                worktree_result=$?
             fi
 
-            if [[ $? -eq 0 ]]; then
+            if [[ $worktree_result -eq 0 ]]; then
                 echo "Created worktree: $worktree_path"
                 project_root=$(git rev-parse --show-toplevel)
                 cd "$worktree_path" || return
@@ -79,6 +94,11 @@ wt() {
                     source "${project_root}/.wt_hook.zsh"
                     unset WT_WORKTREE_PATH WT_BRANCH_NAME WT_PROJECT_ROOT
                 fi
+            else
+                echo "Error: Failed to create worktree for branch '$branch_name'"
+                # Clean up potentially created but broken worktree directory
+                [[ -d "$worktree_path" ]] && rm -rf "$worktree_path"
+                return 1
             fi
             ;;
 
