@@ -3,8 +3,8 @@ use chrono::{Local, TimeZone};
 use clap::Parser;
 use git2::{Repository, StatusOptions};
 use rayon::prelude::*;
-use skim::prelude::*;
 use skim::FuzzyAlgorithm;
+use skim::prelude::*;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
@@ -60,7 +60,7 @@ impl WorktreeItem {
 }
 
 impl SkimItem for WorktreeItem {
-    fn text(&self) -> Cow<str> {
+    fn text(&self) -> Cow<'_, str> {
         Cow::Borrowed(&self.display_text)
     }
 
@@ -76,7 +76,9 @@ impl SkimItem for WorktreeItem {
     fn preview(&self, _context: PreviewContext) -> ItemPreview {
         // Generate preview using git2 API data wrapped in shell for formatting
         let preview_result = generate_preview(&self.branch, &self.path);
-        ItemPreview::Text(preview_result.unwrap_or_else(|e| format!("Error generating preview: {e}")))
+        ItemPreview::Text(
+            preview_result.unwrap_or_else(|e| format!("Error generating preview: {e}")),
+        )
     }
 }
 
@@ -90,14 +92,17 @@ fn generate_preview(branch: &str, path: &str) -> Result<String> {
     // Open repository
     if let Ok(repo) = Repository::open(path) {
         // Get last commit info
-        if let Ok(head) = repo.head() {
-            if let Ok(commit) = head.peel_to_commit() {
-                let timestamp = commit.time().seconds();
-                let dt = Local.timestamp_opt(timestamp, 0).single().unwrap_or_else(Local::now);
-                let relative = format_relative_time(&dt);
-                let summary = commit.summary().unwrap_or("No message");
-                output.push_str(&format!("🕐 Last commit: {relative}: {summary}\n\n"));
-            }
+        if let Ok(head) = repo.head()
+            && let Ok(commit) = head.peel_to_commit()
+        {
+            let timestamp = commit.time().seconds();
+            let dt = Local
+                .timestamp_opt(timestamp, 0)
+                .single()
+                .unwrap_or_else(Local::now);
+            let relative = format_relative_time(&dt);
+            let summary = commit.summary().unwrap_or("No message");
+            output.push_str(&format!("🕐 Last commit: {relative}: {summary}\n\n"));
         }
 
         // Get status
@@ -219,32 +224,35 @@ fn collect_worktrees() -> Result<Vec<(String, String)>> {
         .context("Failed to open git repository")?;
 
     // Get the common git directory (handles both regular repos and worktrees)
-    let git_common_dir = current_repo.path().parent()
+    let git_common_dir = current_repo
+        .path()
+        .parent()
         .ok_or_else(|| anyhow::anyhow!("Failed to get repository parent directory"))?;
 
     // For worktrees, we need to go up one more level to get the main repo
     let main_repo_path = if git_common_dir.ends_with(".git/worktrees") {
-        git_common_dir.parent()
+        git_common_dir
+            .parent()
             .and_then(|p| p.parent())
             .ok_or_else(|| anyhow::anyhow!("Failed to get main repository path"))?
     } else if git_common_dir.ends_with(".git") {
-        git_common_dir.parent()
+        git_common_dir
+            .parent()
             .ok_or_else(|| anyhow::anyhow!("Failed to get repository parent"))?
     } else {
         git_common_dir
     };
 
-    let main_repo = Repository::open(main_repo_path)
-        .context("Failed to open main repository")?;
+    let main_repo = Repository::open(main_repo_path).context("Failed to open main repository")?;
 
     let mut worktrees = Vec::new();
 
     // Add the main repository
-    if let Ok(head) = main_repo.head() {
-        if let Some(name) = head.shorthand() {
-            let path = main_repo_path.to_string_lossy().to_string();
-            worktrees.push((name.to_string(), path));
-        }
+    if let Ok(head) = main_repo.head()
+        && let Some(name) = head.shorthand()
+    {
+        let path = main_repo_path.to_string_lossy().to_string();
+        worktrees.push((name.to_string(), path));
     }
 
     // Get worktrees directory
@@ -261,15 +269,15 @@ fn collect_worktrees() -> Result<Vec<(String, String)>> {
                     let worktree_path = gitdir_content.trim();
 
                     // Clean up the path - remove .git at the end if present
-                    let worktree_path = worktree_path.strip_suffix("/.git").unwrap_or(worktree_path);
+                    let worktree_path =
+                        worktree_path.strip_suffix("/.git").unwrap_or(worktree_path);
 
                     // Open the worktree to get its branch
-                    if let Ok(wt_repo) = Repository::open(worktree_path) {
-                        if let Ok(head) = wt_repo.head() {
-                            if let Some(branch_name) = head.shorthand() {
-                                worktrees.push((branch_name.to_string(), worktree_path.to_string()));
-                            }
-                        }
+                    if let Ok(wt_repo) = Repository::open(worktree_path)
+                        && let Ok(head) = wt_repo.head()
+                        && let Some(branch_name) = head.shorthand()
+                    {
+                        worktrees.push((branch_name.to_string(), worktree_path.to_string()));
                     }
                 }
             }
@@ -281,15 +289,17 @@ fn collect_worktrees() -> Result<Vec<(String, String)>> {
 
 fn remove_worktree(branch: &str, path: &str) -> Result<()> {
     // Open the worktree repository
-    let repo = Repository::open(path)
-        .context("Failed to open worktree repository")?;
+    let repo = Repository::open(path).context("Failed to open worktree repository")?;
 
     // Get the main repository path
-    let git_common_dir = repo.path().parent()
+    let git_common_dir = repo
+        .path()
+        .parent()
         .ok_or_else(|| anyhow::anyhow!("Failed to get repository parent directory"))?;
 
     let main_repo_path = if git_common_dir.ends_with(".git/worktrees") {
-        git_common_dir.parent()
+        git_common_dir
+            .parent()
             .and_then(|p| p.parent())
             .ok_or_else(|| anyhow::anyhow!("Failed to get main repository path"))?
     } else {
@@ -298,8 +308,7 @@ fn remove_worktree(branch: &str, path: &str) -> Result<()> {
 
     // Remove the worktree directory
     eprintln!("Removing worktree: {branch} ({path})");
-    std::fs::remove_dir_all(path)
-        .context("Failed to remove worktree directory")?;
+    std::fs::remove_dir_all(path).context("Failed to remove worktree directory")?;
 
     // Remove the administrative files in .git/worktrees
     let worktree_name = Path::new(path)
@@ -309,17 +318,14 @@ fn remove_worktree(branch: &str, path: &str) -> Result<()> {
 
     let admin_dir = main_repo_path.join(".git/worktrees").join(worktree_name);
     if admin_dir.exists() {
-        std::fs::remove_dir_all(&admin_dir)
-            .context("Failed to remove worktree admin directory")?;
+        std::fs::remove_dir_all(&admin_dir).context("Failed to remove worktree admin directory")?;
     }
 
     // Delete the branch
-    let main_repo = Repository::open(main_repo_path)
-        .context("Failed to open main repository")?;
+    let main_repo = Repository::open(main_repo_path).context("Failed to open main repository")?;
 
     if let Ok(mut branch_ref) = main_repo.find_branch(branch, git2::BranchType::Local) {
-        branch_ref.delete()
-            .context("Failed to delete branch")?;
+        branch_ref.delete().context("Failed to delete branch")?;
         eprintln!("Deleted branch: {branch}");
     }
 
@@ -367,7 +373,10 @@ fn main() -> Result<()> {
         for (_, item) in all_items {
             // Store the mapping from display_text to (branch, path)
             let mut map = item_map_clone.lock().unwrap();
-            map.insert(item.display_text.clone(), (item.branch.clone(), item.path.clone()));
+            map.insert(
+                item.display_text.clone(),
+                (item.branch.clone(), item.path.clone()),
+            );
             drop(map);
 
             let _ = tx_item.send(item as Arc<dyn SkimItem>);
