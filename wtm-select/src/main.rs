@@ -180,18 +180,15 @@ fn generate_preview(branch: &str, path: &str) -> Result<String> {
                     let develop_tree = develop_commit.tree().ok();
 
                     if let (Some(head_tree), Some(develop_tree)) = (head_tree, develop_tree) {
-                        if let Ok(diff) = repo.diff_tree_to_tree(
-                            Some(&develop_tree),
-                            Some(&head_tree),
-                            None,
-                        ) {
+                        if let Ok(diff) =
+                            repo.diff_tree_to_tree(Some(&develop_tree), Some(&head_tree), None)
+                        {
                             if let Ok(stats) = diff.stats() {
                                 let files = stats.files_changed();
                                 let insertions = stats.insertions();
                                 let deletions = stats.deletions();
                                 output.push_str(&format!(
-                                    "  {} file(s) changed, +{} -{}\n",
-                                    files, insertions, deletions
+                                    "  {files} file(s) changed, +{insertions} -{deletions}\n"
                                 ));
                             }
 
