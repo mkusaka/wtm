@@ -6,8 +6,9 @@ use rayon::prelude::*;
 use skim::prelude::*;
 use skim::FuzzyAlgorithm;
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 #[derive(Parser, Debug)]
@@ -30,8 +31,6 @@ struct Args {
 struct WorktreeItem {
     branch: String,
     path: String,
-    dirname: String,
-    updated_relative: String,
     display_text: String,
     matching_ranges: Vec<(usize, usize)>,
 }
@@ -39,8 +38,8 @@ struct WorktreeItem {
 impl WorktreeItem {
     fn new(branch: String, path: String, dirname: String, updated_relative: String) -> Self {
         // Build the display string once so `text()` and highlighting stay consistent.
-        let updated_col = format!("{:<10}", updated_relative);
-        let branch_col = format!("{:<40}", branch);
+        let updated_col = format!("{updated_relative:<10}");
+        let branch_col = format!("{branch:<40}");
         let display_text = format!("{updated_col} {branch_col} {dirname}");
 
         // Describe the byte ranges we want skim to match against.
@@ -54,8 +53,6 @@ impl WorktreeItem {
         Self {
             branch,
             path,
-            dirname,
-            updated_relative,
             display_text,
             matching_ranges: vec![updated_range, branch_range, dirname_range],
         }
@@ -79,7 +76,7 @@ impl SkimItem for WorktreeItem {
     fn preview(&self, _context: PreviewContext) -> ItemPreview {
         // Generate preview using git2 API data wrapped in shell for formatting
         let preview_result = generate_preview(&self.branch, &self.path);
-        ItemPreview::Text(preview_result.unwrap_or_else(|e| format!("Error generating preview: {}", e)))
+        ItemPreview::Text(preview_result.unwrap_or_else(|e| format!("Error generating preview: {e}")))
     }
 }
 
@@ -87,8 +84,8 @@ fn generate_preview(branch: &str, path: &str) -> Result<String> {
     let mut output = String::new();
 
     // Header info
-    output.push_str(&format!("🌳 Branch: {}\n\n", branch));
-    output.push_str(&format!("📁 Path: {}\n\n", path));
+    output.push_str(&format!("🌳 Branch: {branch}\n\n"));
+    output.push_str(&format!("📁 Path: {path}\n\n"));
 
     // Open repository
     if let Ok(repo) = Repository::open(path) {
@@ -99,7 +96,7 @@ fn generate_preview(branch: &str, path: &str) -> Result<String> {
                 let dt = Local.timestamp_opt(timestamp, 0).single().unwrap_or_else(Local::now);
                 let relative = format_relative_time(&dt);
                 let summary = commit.summary().unwrap_or("No message");
-                output.push_str(&format!("🕐 Last commit: {}: {}\n\n", relative, summary));
+                output.push_str(&format!("🕐 Last commit: {relative}: {summary}\n\n"));
             }
         }
 
@@ -132,16 +129,17 @@ fn generate_preview(branch: &str, path: &str) -> Result<String> {
                         "?"
                     };
 
-                    output.push_str(&format!("  {} {}\n", status_char, path));
+                    output.push_str(&format!("  {status_char} {path}\n"));
                 }
 
                 let total = statuses.len();
                 if total > 10 {
-                    output.push_str(&format!("  ... and {} more\n", total - 10));
+                    let more = total - 10;
+                    output.push_str(&format!("  ... and {more} more\n"));
                 }
             }
         }
-        output.push_str("\n");
+        output.push('\n');
 
         // Get recent commits
         output.push_str("📜 Recent commits:\n");
@@ -150,13 +148,11 @@ fn generate_preview(branch: &str, path: &str) -> Result<String> {
         if let Ok(mut revwalk) = repo.revwalk() {
             let _ = revwalk.push_head();
 
-            for oid in revwalk.take(10) {
-                if let Ok(oid) = oid {
-                    if let Ok(commit) = repo.find_commit(oid) {
-                        let id_str = &oid.to_string()[..7];
-                        let summary = commit.summary().unwrap_or("No message");
-                        output.push_str(&format!("  {} {}\n", id_str, summary));
-                    }
+            for oid in revwalk.take(10).flatten() {
+                if let Ok(commit) = repo.find_commit(oid) {
+                    let id_str = &oid.to_string()[..7];
+                    let summary = commit.summary().unwrap_or("No message");
+                    output.push_str(&format!("  {id_str} {summary}\n"));
                 }
             }
         }
@@ -265,11 +261,7 @@ fn collect_worktrees() -> Result<Vec<(String, String)>> {
                     let worktree_path = gitdir_content.trim();
 
                     // Clean up the path - remove .git at the end if present
-                    let worktree_path = if worktree_path.ends_with("/.git") {
-                        &worktree_path[..worktree_path.len() - 5]
-                    } else {
-                        worktree_path
-                    };
+                    let worktree_path = worktree_path.strip_suffix("/.git").unwrap_or(worktree_path);
 
                     // Open the worktree to get its branch
                     if let Ok(wt_repo) = Repository::open(worktree_path) {
@@ -305,7 +297,7 @@ fn remove_worktree(branch: &str, path: &str) -> Result<()> {
     };
 
     // Remove the worktree directory
-    eprintln!("Removing worktree: {} ({})", branch, path);
+    eprintln!("Removing worktree: {branch} ({path})");
     std::fs::remove_dir_all(path)
         .context("Failed to remove worktree directory")?;
 
@@ -328,7 +320,7 @@ fn remove_worktree(branch: &str, path: &str) -> Result<()> {
     if let Ok(mut branch_ref) = main_repo.find_branch(branch, git2::BranchType::Local) {
         branch_ref.delete()
             .context("Failed to delete branch")?;
-        eprintln!("Deleted branch: {}", branch);
+        eprintln!("Deleted branch: {branch}");
     }
 
     Ok(())
@@ -342,6 +334,10 @@ fn main() -> Result<()> {
 
     // Create a channel for sending items to skim
     let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
+
+    // Create a map to store display text -> WorktreeItem mapping
+    let item_map = Arc::new(Mutex::new(HashMap::<String, (String, String)>::new()));
+    let item_map_clone = Arc::clone(&item_map);
 
     // Process worktrees in parallel and send to skim as they're ready
     thread::spawn(move || {
@@ -367,8 +363,13 @@ fn main() -> Result<()> {
         // Sort by timestamp (descending)
         all_items.sort_by_key(|(ts, _)| *ts);
 
-        // Send all sorted items once
+        // Send all sorted items once and populate the map
         for (_, item) in all_items {
+            // Store the mapping from display_text to (branch, path)
+            let mut map = item_map_clone.lock().unwrap();
+            map.insert(item.display_text.clone(), (item.branch.clone(), item.path.clone()));
+            drop(map);
+
             let _ = tx_item.send(item as Arc<dyn SkimItem>);
         }
 
@@ -406,11 +407,11 @@ fn main() -> Result<()> {
         // Get the selected item
         let selected_item = &selected[0];
 
-        // Try to downcast to our WorktreeItem type to get the full path
-        if let Some(item) = selected_item.as_any().downcast_ref::<WorktreeItem>() {
-            let branch = item.branch.as_str();
-            let path = item.path.as_str();
+        // Get the display text and look up the item details from our map
+        let display_text = selected_item.text();
+        let map = item_map.lock().unwrap();
 
+        if let Some((branch, path)) = map.get(display_text.as_ref()) {
             match args.action.as_str() {
                 "cd" => {
                     // Output path for shell to cd
@@ -495,9 +496,9 @@ mod tests {
             // Verify the text format has fixed-width columns
             let search_text = item.text();
             // Format is now: updated (10 chars) | branch (40 chars) | dirname
-            assert!(search_text.starts_with(&item.updated_relative));
+            assert!(search_text.starts_with(updated));
             assert!(search_text.contains(&item.branch));
-            assert!(search_text.contains(&item.dirname));
+            assert!(search_text.contains(dirname));
         }
     }
 }
