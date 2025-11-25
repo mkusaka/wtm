@@ -3,10 +3,12 @@ use chrono::{Local, TimeZone};
 use clap::Parser;
 use git2::{Repository, StatusOptions};
 use rayon::prelude::*;
+use serde::Deserialize;
 use skim::FuzzyAlgorithm;
 use skim::prelude::*;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -25,6 +27,31 @@ struct Args {
     /// Action to perform (cd, remove)
     #[arg(long, default_value = "cd")]
     action: String,
+}
+
+/// Configuration loaded from wt.config.yml
+#[derive(Debug, Deserialize, Default)]
+struct Config {
+    /// Base branch for diff comparison (default: origin/main)
+    #[serde(default = "default_base_branch")]
+    base_branch: String,
+}
+
+fn default_base_branch() -> String {
+    "origin/main".to_string()
+}
+
+/// Load configuration from wt.config.yml in the git root directory
+fn load_config(repo_path: &Path) -> Config {
+    let config_path = repo_path.join("wt.config.yml");
+    if config_path.exists() {
+        if let Ok(content) = fs::read_to_string(&config_path) {
+            if let Ok(config) = serde_yaml::from_str(&content) {
+                return config;
+            }
+        }
+    }
+    Config::default()
 }
 
 #[derive(Debug, Clone)]
@@ -163,25 +190,32 @@ fn generate_preview(branch: &str, path: &str) -> Result<String> {
         }
         output.push('\n');
 
-        // Get diff stat against origin/develop
-        output.push_str("📊 Diff vs origin/develop:\n");
+        // Load config and get base branch
+        let config = load_config(Path::new(path));
+        let base_branch = &config.base_branch;
+
+        // Get diff stat against base branch
+        output.push_str(&format!("📊 Diff vs {base_branch}:\n"));
         output.push_str("───────────────────────────────────────────────────\n");
 
         if let Ok(head_commit) = repo.head().and_then(|h| h.peel_to_commit()) {
-            // Try to find origin/develop
-            let develop_ref = repo
-                .find_reference("refs/remotes/origin/develop")
-                .or_else(|_| repo.find_reference("refs/remotes/origin/main"))
-                .or_else(|_| repo.find_reference("refs/remotes/origin/master"));
+            // Convert base_branch to ref format (e.g., "origin/main" -> "refs/remotes/origin/main")
+            let base_ref = if base_branch.starts_with("refs/") {
+                base_branch.to_string()
+            } else {
+                format!("refs/remotes/{base_branch}")
+            };
 
-            if let Ok(develop_ref) = develop_ref {
-                if let Ok(develop_commit) = develop_ref.peel_to_commit() {
+            let base_ref_result = repo.find_reference(&base_ref);
+
+            if let Ok(base_ref) = base_ref_result {
+                if let Ok(base_commit) = base_ref.peel_to_commit() {
                     let head_tree = head_commit.tree().ok();
-                    let develop_tree = develop_commit.tree().ok();
+                    let base_tree = base_commit.tree().ok();
 
-                    if let (Some(head_tree), Some(develop_tree)) = (head_tree, develop_tree)
+                    if let (Some(head_tree), Some(base_tree)) = (head_tree, base_tree)
                         && let Ok(diff) =
-                            repo.diff_tree_to_tree(Some(&develop_tree), Some(&head_tree), None)
+                            repo.diff_tree_to_tree(Some(&base_tree), Some(&head_tree), None)
                     {
                         if let Ok(stats) = diff.stats() {
                             let files = stats.files_changed();
@@ -195,7 +229,7 @@ fn generate_preview(branch: &str, path: &str) -> Result<String> {
                         // Show changed files (max 15)
                         let mut file_count = 0;
                         for delta in diff.deltas().take(15) {
-                            let path = delta
+                            let file_path = delta
                                 .new_file()
                                 .path()
                                 .or_else(|| delta.old_file().path())
@@ -209,7 +243,7 @@ fn generate_preview(branch: &str, path: &str) -> Result<String> {
                                 git2::Delta::Copied => "C",
                                 _ => "?",
                             };
-                            output.push_str(&format!("  {status_char} {path}\n"));
+                            output.push_str(&format!("  {status_char} {file_path}\n"));
                             file_count += 1;
                         }
 
@@ -222,12 +256,12 @@ fn generate_preview(branch: &str, path: &str) -> Result<String> {
                         }
 
                         if file_count == 0 {
-                            output.push_str("  ✨ No changes from origin/develop\n");
+                            output.push_str(&format!("  ✨ No changes from {base_branch}\n"));
                         }
                     }
                 }
             } else {
-                output.push_str("  (origin/develop not found)\n");
+                output.push_str(&format!("  ({base_branch} not found)\n"));
             }
         }
     } else {
