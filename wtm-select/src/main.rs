@@ -3,10 +3,12 @@ use chrono::{Local, TimeZone};
 use clap::Parser;
 use git2::{Repository, StatusOptions};
 use rayon::prelude::*;
+use serde::Deserialize;
 use skim::FuzzyAlgorithm;
 use skim::prelude::*;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -25,6 +27,30 @@ struct Args {
     /// Action to perform (cd, remove)
     #[arg(long, default_value = "cd")]
     action: String,
+}
+
+/// Configuration loaded from wt.config.yml
+#[derive(Debug, Deserialize, Default)]
+struct Config {
+    /// Base branch for diff comparison (default: origin/main)
+    #[serde(default = "default_base_branch")]
+    base_branch: String,
+}
+
+fn default_base_branch() -> String {
+    "origin/main".to_string()
+}
+
+/// Load configuration from wt.config.yml in the git root directory
+fn load_config(repo_path: &Path) -> Config {
+    let config_path = repo_path.join("wt.config.yml");
+    if config_path.exists()
+        && let Ok(content) = fs::read_to_string(&config_path)
+        && let Ok(config) = serde_yaml::from_str(&content)
+    {
+        return config;
+    }
+    Config::default()
 }
 
 #[derive(Debug, Clone)]
@@ -159,6 +185,82 @@ fn generate_preview(branch: &str, path: &str) -> Result<String> {
                     let summary = commit.summary().unwrap_or("No message");
                     output.push_str(&format!("  {id_str} {summary}\n"));
                 }
+            }
+        }
+        output.push('\n');
+
+        // Load config and get base branch
+        let config = load_config(Path::new(path));
+        let base_branch = &config.base_branch;
+
+        // Get diff stat against base branch
+        output.push_str(&format!("📊 Diff vs {base_branch}:\n"));
+        output.push_str("───────────────────────────────────────────────────\n");
+
+        if let Ok(head_commit) = repo.head().and_then(|h| h.peel_to_commit()) {
+            // Convert base_branch to ref format (e.g., "origin/main" -> "refs/remotes/origin/main")
+            let base_ref = if base_branch.starts_with("refs/") {
+                base_branch.to_string()
+            } else {
+                format!("refs/remotes/{base_branch}")
+            };
+
+            let base_ref_result = repo.find_reference(&base_ref);
+
+            if let Ok(base_ref) = base_ref_result {
+                if let Ok(base_commit) = base_ref.peel_to_commit() {
+                    let head_tree = head_commit.tree().ok();
+                    let base_tree = base_commit.tree().ok();
+
+                    if let (Some(head_tree), Some(base_tree)) = (head_tree, base_tree)
+                        && let Ok(diff) =
+                            repo.diff_tree_to_tree(Some(&base_tree), Some(&head_tree), None)
+                    {
+                        if let Ok(stats) = diff.stats() {
+                            let files = stats.files_changed();
+                            let insertions = stats.insertions();
+                            let deletions = stats.deletions();
+                            output.push_str(&format!(
+                                "  {files} file(s) changed, +{insertions} -{deletions}\n"
+                            ));
+                        }
+
+                        // Show changed files (max 15)
+                        let mut file_count = 0;
+                        for delta in diff.deltas().take(15) {
+                            let file_path = delta
+                                .new_file()
+                                .path()
+                                .or_else(|| delta.old_file().path())
+                                .map(|p| p.to_string_lossy())
+                                .unwrap_or_default();
+                            let status_char = match delta.status() {
+                                git2::Delta::Added => "A",
+                                git2::Delta::Deleted => "D",
+                                git2::Delta::Modified => "M",
+                                git2::Delta::Renamed => "R",
+                                git2::Delta::Copied => "C",
+                                _ => "?",
+                            };
+                            output.push_str(&format!("  {status_char} {file_path}\n"));
+                            file_count += 1;
+                        }
+
+                        let total_deltas = diff.deltas().count();
+                        if total_deltas > 15 {
+                            output.push_str(&format!(
+                                "  ... and {} more files\n",
+                                total_deltas - file_count
+                            ));
+                        }
+
+                        if file_count == 0 {
+                            output.push_str(&format!("  ✨ No changes from {base_branch}\n"));
+                        }
+                    }
+                }
+            } else {
+                output.push_str(&format!("  ({base_branch} not found)\n"));
             }
         }
     } else {
@@ -391,6 +493,7 @@ fn main() -> Result<()> {
         .height("80%".to_string())
         .multi(false)
         .prompt("🔍 Select worktree > ".to_string())
+        .preview(Some(String::new())) // Required to enable SkimItem::preview() method
         .preview_window(if args.preview {
             "right:60%:wrap".to_string()
         } else {
