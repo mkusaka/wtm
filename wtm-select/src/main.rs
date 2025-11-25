@@ -60,7 +60,7 @@ impl WorktreeItem {
 }
 
 impl SkimItem for WorktreeItem {
-    fn text(&self) -> Cow<str> {
+    fn text(&self) -> Cow<'_, str> {
         Cow::Borrowed(&self.display_text)
     }
 
@@ -248,11 +248,11 @@ fn collect_worktrees() -> Result<Vec<(String, String)>> {
     let mut worktrees = Vec::new();
 
     // Add the main repository
-    if let Ok(head) = main_repo.head() {
-        if let Some(name) = head.shorthand() {
-            let path = main_repo_path.to_string_lossy().to_string();
-            worktrees.push((name.to_string(), path));
-        }
+    if let Ok(head) = main_repo.head()
+        && let Some(name) = head.shorthand()
+    {
+        let path = main_repo_path.to_string_lossy().to_string();
+        worktrees.push((name.to_string(), path));
     }
 
     // Get worktrees directory
@@ -273,13 +273,11 @@ fn collect_worktrees() -> Result<Vec<(String, String)>> {
                         worktree_path.strip_suffix("/.git").unwrap_or(worktree_path);
 
                     // Open the worktree to get its branch
-                    if let Ok(wt_repo) = Repository::open(worktree_path) {
-                        if let Ok(head) = wt_repo.head() {
-                            if let Some(branch_name) = head.shorthand() {
-                                worktrees
-                                    .push((branch_name.to_string(), worktree_path.to_string()));
-                            }
-                        }
+                    if let Ok(wt_repo) = Repository::open(worktree_path)
+                        && let Ok(head) = wt_repo.head()
+                        && let Some(branch_name) = head.shorthand()
+                    {
+                        worktrees.push((branch_name.to_string(), worktree_path.to_string()));
                     }
                 }
             }
