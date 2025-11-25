@@ -92,17 +92,17 @@ fn generate_preview(branch: &str, path: &str) -> Result<String> {
     // Open repository
     if let Ok(repo) = Repository::open(path) {
         // Get last commit info
-        if let Ok(head) = repo.head() {
-            if let Ok(commit) = head.peel_to_commit() {
-                let timestamp = commit.time().seconds();
-                let dt = Local
-                    .timestamp_opt(timestamp, 0)
-                    .single()
-                    .unwrap_or_else(Local::now);
-                let relative = format_relative_time(&dt);
-                let summary = commit.summary().unwrap_or("No message");
-                output.push_str(&format!("🕐 Last commit: {relative}: {summary}\n\n"));
-            }
+        if let Ok(head) = repo.head()
+            && let Ok(commit) = head.peel_to_commit()
+        {
+            let timestamp = commit.time().seconds();
+            let dt = Local
+                .timestamp_opt(timestamp, 0)
+                .single()
+                .unwrap_or_else(Local::now);
+            let relative = format_relative_time(&dt);
+            let summary = commit.summary().unwrap_or("No message");
+            output.push_str(&format!("🕐 Last commit: {relative}: {summary}\n\n"));
         }
 
         // Get status
