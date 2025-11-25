@@ -44,12 +44,11 @@ fn default_base_branch() -> String {
 /// Load configuration from wt.config.yml in the git root directory
 fn load_config(repo_path: &Path) -> Config {
     let config_path = repo_path.join("wt.config.yml");
-    if config_path.exists() {
-        if let Ok(content) = fs::read_to_string(&config_path) {
-            if let Ok(config) = serde_yaml::from_str(&content) {
-                return config;
-            }
-        }
+    if config_path.exists()
+        && let Ok(content) = fs::read_to_string(&config_path)
+        && let Ok(config) = serde_yaml::from_str(&content)
+    {
+        return config;
     }
     Config::default()
 }
