@@ -382,6 +382,7 @@ fn main() -> Result<()> {
         .height("80%".to_string())
         .multi(false)
         .prompt("🔍 Select worktree > ".to_string())
+        .preview(Some(String::new())) // Required to enable SkimItem::preview() method
         .preview_window(if args.preview {
             "right:60%:wrap".to_string()
         } else {
