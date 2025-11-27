@@ -45,12 +45,27 @@ wt() {
                 branch_exists=true
             fi
 
+            # Check if branch is already used by another worktree
+            local existing_worktree
+            existing_worktree=$(git worktree list --porcelain | \
+                awk -v branch="$branch_name" '
+                    /^worktree / { path = substr($0, 10) }
+                    /^branch refs\/heads\// {
+                        b = substr($0, 19)
+                        if (b == branch) print path
+                    }
+                ')
+            if [[ -n "$existing_worktree" ]]; then
+                echo "Error: Branch '$branch_name' is already used by worktree at '$existing_worktree'"
+                echo "Hint: Use 'wt remove $branch_name' to remove it first, or choose a different branch name"
+                return 1
+            fi
+
             # Decide whether to create new branch or use existing
-            local worktree_result=0
+            local worktree_output
             if [[ "$force_new" = true ]]; then
                 # Force create new branch
-                git worktree add -b "$branch_name" "$worktree_path"
-                worktree_result=$?
+                worktree_output=$(git worktree add -b "$branch_name" "$worktree_path" 2>&1)
             elif [[ "$branch_exists" = true ]]; then
                 # Use existing branch
                 local local_exists=false
@@ -61,13 +76,11 @@ wt() {
                 if [[ "$local_exists" = true ]]; then
                     # Local branch exists
                     echo "Using existing local branch: $branch_name"
-                    git worktree add "$worktree_path" "$branch_name"
-                    worktree_result=$?
+                    worktree_output=$(git worktree add "$worktree_path" "$branch_name" 2>&1)
                 elif [[ "$remote_exists" = true ]]; then
                     # Only remote branch exists - create local tracking branch
                     echo "Creating local branch from remote: $branch_name"
-                    git worktree add --track -b "$branch_name" "$worktree_path" "origin/$branch_name"
-                    worktree_result=$?
+                    worktree_output=$(git worktree add --track -b "$branch_name" "$worktree_path" "origin/$branch_name" 2>&1)
                 else
                     # Should not reach here, but handle gracefully
                     echo "Error: Branch '$branch_name' not found"
@@ -76,11 +89,11 @@ wt() {
             else
                 # Create new branch
                 echo "Creating new branch: $branch_name"
-                git worktree add -b "$branch_name" "$worktree_path"
-                worktree_result=$?
+                worktree_output=$(git worktree add -b "$branch_name" "$worktree_path" 2>&1)
             fi
 
-            if [[ $worktree_result -eq 0 ]]; then
+            # Verify worktree was actually created (check for .git file in worktree directory)
+            if [[ -d "$worktree_path" ]] && [[ -e "$worktree_path/.git" ]]; then
                 echo "Created worktree: $worktree_path"
                 project_root=$(git rev-parse --show-toplevel)
                 cd "$worktree_path" || return
@@ -96,6 +109,7 @@ wt() {
                 fi
             else
                 echo "Error: Failed to create worktree for branch '$branch_name'"
+                [[ -n "$worktree_output" ]] && echo "$worktree_output"
                 # Clean up potentially created but broken worktree directory
                 [[ -d "$worktree_path" ]] && rm -rf "$worktree_path"
                 return 1
