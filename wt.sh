@@ -56,9 +56,27 @@ wt() {
                     }
                 ')
             if [[ -n "$existing_worktree" ]]; then
-                echo "Error: Branch '$branch_name' is already used by worktree at '$existing_worktree'"
-                echo "Hint: Use 'wt remove $branch_name' to remove it first, or choose a different branch name"
-                return 1
+                # Automatically move existing worktree to the new location
+                echo "Moving existing worktree from '$existing_worktree' to '$worktree_path'..."
+                if git worktree move "$existing_worktree" "$worktree_path" 2>&1; then
+                    echo "Moved worktree: $worktree_path"
+                    project_root=$(git rev-parse --show-toplevel)
+                    cd "$worktree_path" || return
+
+                    # Run hook if exists with environment variables
+                    if [[ -f "${project_root}/.wt_hook.zsh" ]]; then
+                        export WT_WORKTREE_PATH="$worktree_path"
+                        export WT_BRANCH_NAME="$branch_name"
+                        export WT_PROJECT_ROOT="$project_root"
+                        echo "Running .wt_hook.zsh..."
+                        source "${project_root}/.wt_hook.zsh"
+                        unset WT_WORKTREE_PATH WT_BRANCH_NAME WT_PROJECT_ROOT
+                    fi
+                    return 0
+                else
+                    echo "Error: Failed to move worktree"
+                    return 1
+                fi
             fi
 
             # Decide whether to create new branch or use existing
@@ -176,7 +194,7 @@ EOF
             echo
             echo "Usage:"
             echo "  wt                     # interactive selection (skim-powered)"
-            echo "  wt add <branch>        # create worktree (use existing branch or create new)"
+            echo "  wt add <branch>        # create worktree (auto-move if exists elsewhere)"
             echo "  wt add -b <branch>     # create worktree with new branch (always new)"
             echo "  wt remove [<branch>]   # remove worktree (interactive or direct)"
             echo "  wt init                # generate .wt_hook.zsh template"
