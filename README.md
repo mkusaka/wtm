@@ -111,7 +111,7 @@ Updated    Branch                                   Directory
 
 ```bash
 wt add feature-new-ui
-# Creates worktree in .git/tmp_worktrees/YYYYMMDD_HHMMSS_feature-new-ui
+# Creates worktree in ./worktrees/YYYYMMDD_HHMMSS_feature-new-ui
 ```
 
 ### Switch between worktrees
@@ -132,7 +132,8 @@ wt remove feature-old
 
 ## Tips
 
-- Worktrees are created in `.git/tmp_worktrees/` with timestamp prefixes
+- Worktrees are created in `./worktrees/` with timestamp prefixes
+- Use `wt init` to set up `.git/info/exclude` to ignore the worktrees directory
 - Use `wt root` to quickly return to the main repository
 - The interactive selector shows relative time since last commit
 - Search is performed across updated time, branch name, and directory name

@@ -30,9 +30,9 @@ wt() {
 
             [[ -z "$branch_name" ]] && { echo "Usage: wt add [-b] <branch_name>"; return 1; }
 
-            local git_dir tmp_dir timestamp dir_name worktree_path project_root
-            git_dir=$(git rev-parse --git-dir 2>/dev/null) || { echo "Not in a git repo"; return 1; }
-            tmp_dir="$git_dir/tmp_worktrees"; mkdir -p "$tmp_dir"
+            local repo_root tmp_dir timestamp dir_name worktree_path project_root
+            repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "Not in a git repo"; return 1; }
+            tmp_dir="$repo_root/worktrees"; mkdir -p "$tmp_dir"
 
             timestamp=$(date +"%Y%m%d_%H%M%S")
             dir_name="${timestamp}_$(echo "$branch_name" | tr '/' '_')"
@@ -154,9 +154,29 @@ wt() {
             ;;
 
         "init")
-            [[ -f ".wt_hook.zsh" ]] && { echo ".wt_hook.zsh already exists"; return 1; }
-            # Create hook template (simplified from gist)
-            cat > .wt_hook.zsh <<'EOF'
+            local git_dir exclude_file
+            git_dir=$(git rev-parse --git-dir 2>/dev/null) || { echo "Not in a git repo"; return 1; }
+            exclude_file="$git_dir/info/exclude"
+
+            # Add worktrees to .git/info/exclude if not already present
+            if [[ -f "$exclude_file" ]]; then
+                if ! grep -qxF "worktrees" "$exclude_file"; then
+                    echo "worktrees" >> "$exclude_file"
+                    echo "Added 'worktrees' to .git/info/exclude"
+                else
+                    echo "'worktrees' already in .git/info/exclude"
+                fi
+            else
+                mkdir -p "$(dirname "$exclude_file")"
+                echo "worktrees" > "$exclude_file"
+                echo "Created .git/info/exclude and added 'worktrees'"
+            fi
+
+            # Create hook template if not exists
+            if [[ -f ".wt_hook.zsh" ]]; then
+                echo ".wt_hook.zsh already exists"
+            else
+                cat > .wt_hook.zsh <<'EOF'
 #!/bin/zsh
 # .wt_hook.zsh - run after `wt add`
 # Available variables: $WT_WORKTREE_PATH, $WT_BRANCH_NAME, $WT_PROJECT_ROOT
@@ -175,8 +195,9 @@ done
 # Example: Run setup script
 # [[ -x ./setup.sh ]] && ./setup.sh
 EOF
-            chmod +x .wt_hook.zsh
-            echo "Created .wt_hook.zsh template"
+                chmod +x .wt_hook.zsh
+                echo "Created .wt_hook.zsh template"
+            fi
             ;;
 
         "root")
@@ -203,7 +224,7 @@ EOF
             echo
             echo "Tips:"
             echo "  - In interactive mode: '^branch' for prefix, 'exact for exact match"
-            echo "  - Worktrees are created in .git/tmp_worktrees/"
+            echo "  - Worktrees are created in ./worktrees/"
             echo "  - .wt_hook.zsh runs after creating worktrees"
             ;;
 
