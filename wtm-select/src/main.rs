@@ -6,6 +6,7 @@ use rayon::prelude::*;
 use serde::Deserialize;
 use skim::FuzzyAlgorithm;
 use skim::prelude::*;
+use skim::tui::options::PreviewLayout;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
@@ -90,10 +91,7 @@ impl SkimItem for WorktreeItem {
         Cow::Borrowed(&self.display_text)
     }
 
-    fn display<'a>(&'a self, context: DisplayContext<'a>) -> AnsiString<'a> {
-        // Use the context directly for proper highlighting
-        AnsiString::from(context)
-    }
+    // Using default display() implementation which calls context.to_line(self.text())
 
     fn get_matching_ranges(&self) -> Option<&[(usize, usize)]> {
         Some(&self.matching_ranges)
@@ -495,9 +493,9 @@ fn main() -> Result<()> {
         .prompt("🔍 Select worktree > ".to_string())
         .preview(Some(String::new())) // Required to enable SkimItem::preview() method
         .preview_window(if args.preview {
-            "right:60%:wrap".to_string()
+            PreviewLayout::from("right:60%:wrap")
         } else {
-            "hidden".to_string()
+            PreviewLayout::from("hidden")
         })
         .header(Some("🌲 Git Worktree Manager | Tips: ^prefix for start match, 'exact for exact match\n──────────────────────────────────────────────────────────────────────────\nUpdated    Branch                                   Directory".to_string()))
         .ansi(true)  // REQUIRED for colored highlights
@@ -510,7 +508,7 @@ fn main() -> Result<()> {
         .unwrap();
 
     // Run skim
-    let selected = Skim::run_with(&options, Some(rx_item))
+    let selected = Skim::run_with(options, Some(rx_item))
         .map(|out| out.selected_items)
         .unwrap_or_default();
 
