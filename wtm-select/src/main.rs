@@ -479,7 +479,7 @@ fn main() -> Result<()> {
             );
             drop(map);
 
-            let _ = tx_item.send(item as Arc<dyn SkimItem>);
+            let _ = tx_item.send(vec![item as Arc<dyn SkimItem>]);
         }
 
         // Signal completion
@@ -488,22 +488,22 @@ fn main() -> Result<()> {
 
     // Configure skim options using builder for better control
     let options = SkimOptionsBuilder::default()
-        .height("80%".to_string())
+        .height("80%")
         .multi(false)
-        .prompt("🔍 Select worktree > ".to_string())
-        .preview(Some(String::new())) // Required to enable SkimItem::preview() method
+        .prompt("🔍 Select worktree > ")
+        .preview("") // Required to enable SkimItem::preview() method
         .preview_window(if args.preview {
             PreviewLayout::from("right:60%:wrap")
         } else {
             PreviewLayout::from("hidden")
         })
-        .header(Some("🌲 Git Worktree Manager | Tips: ^prefix for start match, 'exact for exact match\n──────────────────────────────────────────────────────────────────────────\nUpdated    Branch                                   Directory".to_string()))
+        .header("🌲 Git Worktree Manager | Tips: ^prefix for start match, 'exact for exact match\n──────────────────────────────────────────────────────────────────────────\nUpdated    Branch                                   Directory")
         .ansi(true)  // REQUIRED for colored highlights
         .regex(false)  // IMPORTANT: extended search with ' ^ ! etc.
         .exact(false)  // Start fuzzy; ' toggles exact
         .algorithm(FuzzyAlgorithm::SkimV2)  // Be explicit about algorithm
         // Color scheme for highlights
-        .color(Some("matched:bg:yellow,matched:fg:black".to_string()))
+        .color("matched:bg:yellow,matched:fg:black")
         .build()
         .unwrap();
 
