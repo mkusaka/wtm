@@ -20,15 +20,17 @@ wt() {
 
         "add")
             local branch_name=$2
+            local start_point=""
             local force_new=false
 
             # Check for -b flag (same as git worktree add -b)
             if [[ "$branch_name" = "-b" ]]; then
                 force_new=true
                 branch_name=$3
+                start_point=$4
             fi
 
-            [[ -z "$branch_name" ]] && { echo "Usage: wt add [-b] <branch_name>"; return 1; }
+            [[ -z "$branch_name" ]] && { echo "Usage: wt add [-b] <branch_name> [<start-point>]"; return 1; }
 
             local repo_root tmp_dir timestamp dir_name worktree_path project_root
             repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "Not in a git repo"; return 1; }
@@ -82,8 +84,12 @@ wt() {
             # Decide whether to create new branch or use existing
             local worktree_output
             if [[ "$force_new" = true ]]; then
-                # Force create new branch
-                worktree_output=$(git worktree add -b "$branch_name" "$worktree_path" 2>&1)
+                # Force create new branch (optionally from a start-point)
+                if [[ -n "$start_point" ]]; then
+                    worktree_output=$(git worktree add -b "$branch_name" "$worktree_path" "$start_point" 2>&1)
+                else
+                    worktree_output=$(git worktree add -b "$branch_name" "$worktree_path" 2>&1)
+                fi
             elif [[ "$branch_exists" = true ]]; then
                 # Use existing branch
                 local local_exists=false
@@ -216,7 +222,7 @@ EOF
             echo "Usage:"
             echo "  wt                     # interactive selection (skim-powered)"
             echo "  wt add <branch>        # create worktree (auto-move if exists elsewhere)"
-            echo "  wt add -b <branch>     # create worktree with new branch (always new)"
+            echo "  wt add -b <branch> [<start-point>]  # create worktree with new branch from start-point"
             echo "  wt remove [<branch>]   # remove worktree (interactive or direct)"
             echo "  wt init                # generate .wt_hook.zsh template"
             echo "  wt root                # cd to git repo root"
