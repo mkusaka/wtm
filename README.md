@@ -23,6 +23,9 @@ cd wtm
 
 # Install wtm-select to your PATH
 cargo install --path wtm-select
+
+# Reproducible install (recommended to avoid dependency breakages)
+cargo install --path wtm-select --locked
 ```
 
 ### Source the shell function
