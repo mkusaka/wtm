@@ -2212,9 +2212,9 @@ checksum = "b2aa850e253778c88a04c3d7323b043aeda9d3e30d5971937c1855769763678e"
 
 [[package]]
 name = "skim"
-version = "4.0.1"
+version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44bc54cc63f3bf1d23dc399a551dc94d8685a69538dea66508eea0c2b7ecb23d"
+checksum = "e8fb345233a8deedc4dc62678f83c87b084ec34aa621dda3858dab0ca70f0e30"
 dependencies = [
  "ansi-to-tui",
  "assert_enum_variants",
