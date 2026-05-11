@@ -192,7 +192,16 @@ echo "🌲 Setting up worktree for branch: $WT_BRANCH_NAME"
 # Copy common files from main repository
 copy_items=(".env" ".claude" ".env.local")
 for item in "${copy_items[@]}"; do
-    [[ -e "${WT_PROJECT_ROOT}/$item" ]] && cp -r "${WT_PROJECT_ROOT}/$item" "$item" && echo "  Copied $item"
+    src="${WT_PROJECT_ROOT}/$item"
+    dest="${WT_WORKTREE_PATH}/$item"
+
+    [[ -e "$src" ]] || continue
+    if [[ -e "$dest" ]]; then
+        echo "  Skipped $item (already exists)"
+        continue
+    fi
+
+    cp -R "$src" "$dest" && echo "  Copied $item"
 done
 
 # Example: Install dependencies

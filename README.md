@@ -70,6 +70,9 @@ wt init  # Generate template
 ```
 
 The hook will be executed after creating or switching to a worktree.
+The generated template copies common local paths only when the destination does
+not already exist, so tracked directories such as `.claude` are not nested or
+overwritten in new worktrees.
 
 Example `.wt_hook.zsh`:
 
