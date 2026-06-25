@@ -1,36 +1,36 @@
 {
+  automerge: true,
+  platformAutomerge: false,
   minimumReleaseAge: "7 days",
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:best-practices"
-  ],
-  "packageRules": [
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:best-practices"],
+  packageRules: [
     {
-      "matchManagers": ["cargo"],
-      "matchDepTypes": [
+      matchManagers: ["cargo"],
+      matchDepTypes: [
         "dependencies",
         "build-dependencies",
-        "workspace.dependencies"
+        "workspace.dependencies",
       ],
-      "matchUpdateTypes": ["minor", "patch", "pin"],
-      "automerge": true,
-      "automergeType": "pr",
-      "minimumReleaseAge": "7 days"
+      matchUpdateTypes: ["minor", "patch", "pin"],
+      automerge: true,
+      automergeType: "pr",
+      minimumReleaseAge: "7 days",
     },
     {
-      "matchManagers": ["cargo"],
-      "matchDepTypes": ["dev-dependencies"],
-      "matchUpdateTypes": ["minor", "patch", "pin"],
-      "automerge": true,
-      "automergeType": "pr",
-      "minimumReleaseAge": "7 days"
+      matchManagers: ["cargo"],
+      matchDepTypes: ["dev-dependencies"],
+      matchUpdateTypes: ["minor", "patch", "pin"],
+      automerge: true,
+      automergeType: "pr",
+      minimumReleaseAge: "7 days",
     },
     {
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["minor", "patch", "digest", "pinDigest"],
-      "automerge": true,
-      "automergeType": "pr",
-      "minimumReleaseAge": "7 days"
-    }
-  ]
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch", "digest", "pinDigest"],
+      automerge: true,
+      automergeType: "pr",
+      minimumReleaseAge: "7 days",
+    },
+  ],
 }
