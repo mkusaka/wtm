@@ -19,21 +19,55 @@ wt() {
             ;;
 
         "add")
-            local branch_name=$2
-            local start_point=""
             local force_new=false
+            local no_move=false
+            local porcelain=false
+            local no_hook=false
+            local branch_name=""
+            local start_point=""
 
-            # Check for -b flag (same as git worktree add -b)
-            if [[ "$branch_name" = "-b" ]]; then
-                force_new=true
-                branch_name=$3
-                start_point=$4
+            shift
+            while (( $# > 0 )); do
+                case "$1" in
+                    "-b")
+                        force_new=true
+                        shift
+                        ;;
+                    "--no-move")
+                        no_move=true
+                        shift
+                        ;;
+                    "--porcelain")
+                        porcelain=true
+                        shift
+                        ;;
+                    "--no-hook")
+                        no_hook=true
+                        shift
+                        ;;
+                    "--")
+                        shift
+                        break
+                        ;;
+                    -*)
+                        echo "Error: Unknown option for 'wt add': $1" >&2
+                        return 1
+                        ;;
+                    *)
+                        break
+                        ;;
+                esac
+            done
+
+            branch_name=${1-}
+            start_point=${2-}
+            if [[ -z "$branch_name" ]] || (( $# > 2 )); then
+                echo "Usage: wt add [--no-move] [--porcelain] [--no-hook] [-b] <branch_name> [<start-point>]" >&2
+                return 1
             fi
 
-            [[ -z "$branch_name" ]] && { echo "Usage: wt add [-b] <branch_name> [<start-point>]"; return 1; }
-
-            local repo_root tmp_dir timestamp dir_name worktree_path project_root
-            repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "Not in a git repo"; return 1; }
+            local repo_root tmp_dir timestamp dir_name worktree_path project_root canonical_path
+            repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "Not in a git repo" >&2; return 1; }
             tmp_dir="$repo_root/worktrees"; mkdir -p "$tmp_dir"
 
             timestamp=$(date +"%Y%m%d_%H%M%S")
@@ -58,25 +92,49 @@ wt() {
                     }
                 ')
             if [[ -n "$existing_worktree" ]]; then
+                if [[ "$no_move" = true ]]; then
+                    echo "Error: Branch '$branch_name' is already checked out at '$existing_worktree'" >&2
+                    return 1
+                fi
+
                 # Automatically move existing worktree to the new location
-                echo "Moving existing worktree from '$existing_worktree' to '$worktree_path'..."
-                if git worktree move "$existing_worktree" "$worktree_path" 2>&1; then
-                    echo "Moved worktree: $worktree_path"
+                if [[ "$porcelain" = true ]]; then
+                    echo "Moving existing worktree from '$existing_worktree' to '$worktree_path'..." >&2
+                else
+                    echo "Moving existing worktree from '$existing_worktree' to '$worktree_path'..."
+                fi
+                local move_output
+                if move_output=$(git worktree move "$existing_worktree" "$worktree_path" 2>&1); then
+                    canonical_path=$(cd "$worktree_path" && pwd -P) || {
+                        echo "Error: Failed to resolve worktree path '$worktree_path'" >&2
+                        return 1
+                    }
+                    worktree_path="$canonical_path"
+                    if [[ "$porcelain" != true ]]; then
+                        echo "Moved worktree: $worktree_path"
+                    fi
                     project_root=$(git rev-parse --show-toplevel)
                     cd "$worktree_path" || return
 
                     # Run hook if exists with environment variables
-                    if [[ -f "${project_root}/.wt_hook.zsh" ]]; then
+                    if [[ "$no_hook" != true ]] && [[ -f "${project_root}/.wt_hook.zsh" ]]; then
                         export WT_WORKTREE_PATH="$worktree_path"
                         export WT_BRANCH_NAME="$branch_name"
                         export WT_PROJECT_ROOT="$project_root"
-                        echo "Running .wt_hook.zsh..."
-                        source "${project_root}/.wt_hook.zsh"
+                        if [[ "$porcelain" = true ]]; then
+                            echo "Running .wt_hook.zsh..." >&2
+                            source "${project_root}/.wt_hook.zsh" >&2
+                        else
+                            echo "Running .wt_hook.zsh..."
+                            source "${project_root}/.wt_hook.zsh"
+                        fi
                         unset WT_WORKTREE_PATH WT_BRANCH_NAME WT_PROJECT_ROOT
                     fi
+                    [[ "$porcelain" = true ]] && echo "$worktree_path"
                     return 0
                 else
-                    echo "Error: Failed to move worktree"
+                    echo "Error: Failed to move worktree" >&2
+                    [[ -n "$move_output" ]] && echo "$move_output" >&2
                     return 1
                 fi
             fi
@@ -99,41 +157,65 @@ wt() {
 
                 if [[ "$local_exists" = true ]]; then
                     # Local branch exists
-                    echo "Using existing local branch: $branch_name"
+                    if [[ "$porcelain" = true ]]; then
+                        echo "Using existing local branch: $branch_name" >&2
+                    else
+                        echo "Using existing local branch: $branch_name"
+                    fi
                     worktree_output=$(git worktree add "$worktree_path" "$branch_name" 2>&1)
                 elif [[ "$remote_exists" = true ]]; then
                     # Only remote branch exists - create local tracking branch
-                    echo "Creating local branch from remote: $branch_name"
+                    if [[ "$porcelain" = true ]]; then
+                        echo "Creating local branch from remote: $branch_name" >&2
+                    else
+                        echo "Creating local branch from remote: $branch_name"
+                    fi
                     worktree_output=$(git worktree add --track -b "$branch_name" "$worktree_path" "origin/$branch_name" 2>&1)
                 else
                     # Should not reach here, but handle gracefully
-                    echo "Error: Branch '$branch_name' not found"
+                    echo "Error: Branch '$branch_name' not found" >&2
                     return 1
                 fi
             else
                 # Create new branch
-                echo "Creating new branch: $branch_name"
+                if [[ "$porcelain" = true ]]; then
+                    echo "Creating new branch: $branch_name" >&2
+                else
+                    echo "Creating new branch: $branch_name"
+                fi
                 worktree_output=$(git worktree add -b "$branch_name" "$worktree_path" 2>&1)
             fi
 
             # Verify worktree was actually created (check for .git file in worktree directory)
             if [[ -d "$worktree_path" ]] && [[ -e "$worktree_path/.git" ]]; then
-                echo "Created worktree: $worktree_path"
+                canonical_path=$(cd "$worktree_path" && pwd -P) || {
+                    echo "Error: Failed to resolve worktree path '$worktree_path'" >&2
+                    return 1
+                }
+                worktree_path="$canonical_path"
+                [[ "$porcelain" != true ]] && echo "Created worktree: $worktree_path"
                 project_root=$(git rev-parse --show-toplevel)
                 cd "$worktree_path" || return
 
                 # Run hook if exists with environment variables
-                if [[ -f "${project_root}/.wt_hook.zsh" ]]; then
+                if [[ "$no_hook" != true ]] && [[ -f "${project_root}/.wt_hook.zsh" ]]; then
                     export WT_WORKTREE_PATH="$worktree_path"
                     export WT_BRANCH_NAME="$branch_name"
                     export WT_PROJECT_ROOT="$project_root"
-                    echo "Running .wt_hook.zsh..."
-                    source "${project_root}/.wt_hook.zsh"
+                    if [[ "$porcelain" = true ]]; then
+                        echo "Running .wt_hook.zsh..." >&2
+                        source "${project_root}/.wt_hook.zsh" >&2
+                    else
+                        echo "Running .wt_hook.zsh..."
+                        source "${project_root}/.wt_hook.zsh"
+                    fi
                     unset WT_WORKTREE_PATH WT_BRANCH_NAME WT_PROJECT_ROOT
                 fi
+                [[ "$porcelain" = true ]] && echo "$worktree_path"
+                return 0
             else
-                echo "Error: Failed to create worktree for branch '$branch_name'"
-                [[ -n "$worktree_output" ]] && echo "$worktree_output"
+                echo "Error: Failed to create worktree for branch '$branch_name'" >&2
+                [[ -n "$worktree_output" ]] && echo "$worktree_output" >&2
                 # Clean up potentially created but broken worktree directory
                 [[ -d "$worktree_path" ]] && rm -rf "$worktree_path"
                 return 1
@@ -231,7 +313,7 @@ EOF
             echo "Usage:"
             echo "  wt                     # interactive selection (skim-powered)"
             echo "  wt add <branch>        # create worktree (auto-move if exists elsewhere)"
-            echo "  wt add -b <branch> [<start-point>]  # create worktree with new branch from start-point"
+            echo "  wt add [--no-move] [--porcelain] [--no-hook] [-b] <branch> [<start-point>]"
             echo "  wt remove [<branch>]   # remove worktree (interactive or direct)"
             echo "  wt init                # generate .wt_hook.zsh template"
             echo "  wt root                # cd to git repo root"
@@ -241,6 +323,7 @@ EOF
             echo "  - In interactive mode: '^branch' for prefix, 'exact for exact match"
             echo "  - Worktrees are created in ./worktrees/"
             echo "  - .wt_hook.zsh runs after creating worktrees"
+            echo "  - Use --no-move --porcelain --no-hook for daemon-safe creation"
             ;;
 
         *)

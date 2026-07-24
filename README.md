@@ -45,12 +45,31 @@ source ~/path/to/wtm/wt.sh
 wt                     # Interactive selection (Enter: open, Esc: cancel)
 wt add <branch>        # Create worktree (use existing branch or create new)
 wt add -b <branch>     # Create worktree with new branch (always new)
+wt add --no-move --porcelain --no-hook -b <branch> [<start-point>]
 wt remove [<branch>]   # Remove worktree (interactive or by branch name)
 wt init                # Generate .wt_hook.zsh template
 wt root                # cd to original repo root
 wt list                # List all worktrees
 wt help                # Show help
 ```
+
+### Daemon-safe creation
+
+For scripts and long-running daemons, combine the following options:
+
+```bash
+worktree_path=$(wt add --no-move --porcelain --no-hook -b "$branch" HEAD)
+```
+
+- `--no-move` returns a non-zero status when the branch is already checked out,
+  instead of relocating the existing worktree.
+- `--porcelain` writes only the canonical worktree path followed by a newline to
+  stdout on success. Progress messages, Git errors, and hook output go to stderr.
+- `--no-hook` skips `.wt_hook.zsh`.
+
+The options apply only when explicitly provided. Existing interactive and
+human-oriented commands retain their automatic relocation, hook execution, and
+status output.
 
 ### Interactive Mode Search
 
