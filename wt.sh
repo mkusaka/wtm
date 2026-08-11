@@ -25,6 +25,7 @@ wt() {
             local no_hook=false
             local branch_name=""
             local start_point=""
+            local original_dir="$PWD"
 
             shift
             while (( $# > 0 )); do
@@ -130,6 +131,7 @@ wt() {
                         fi
                         unset WT_WORKTREE_PATH WT_BRANCH_NAME WT_PROJECT_ROOT
                     fi
+                    cd "$original_dir" || return
                     [[ "$porcelain" = true ]] && echo "$worktree_path"
                     return 0
                 else
@@ -211,6 +213,7 @@ wt() {
                     fi
                     unset WT_WORKTREE_PATH WT_BRANCH_NAME WT_PROJECT_ROOT
                 fi
+                cd "$original_dir" || return
                 [[ "$porcelain" = true ]] && echo "$worktree_path"
                 return 0
             else
@@ -323,6 +326,7 @@ EOF
             echo "  - In interactive mode: '^branch' for prefix, 'exact for exact match"
             echo "  - Worktrees are created in ./worktrees/"
             echo "  - .wt_hook.zsh runs after creating worktrees"
+            echo "  - After 'wt add', use 'cd -' to enter the created worktree"
             echo "  - Use --no-move --porcelain --no-hook for daemon-safe creation"
             ;;
 

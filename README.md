@@ -137,6 +137,8 @@ Updated    Branch                                   Directory
 ```bash
 wt add feature-new-ui
 # Creates worktree in ./worktrees/YYYYMMDD_HHMMSS_feature-new-ui
+# The shell stays in the current directory; use `cd -` to enter the worktree.
+# Run `cd -` again to return.
 ```
 
 ### Switch between worktrees

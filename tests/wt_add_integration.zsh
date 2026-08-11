@@ -132,6 +132,22 @@ legacy_path=$(worktree_for_branch "$repo" legacy/create)
 assert_eq "legacy/create" "$(cat "${legacy_path}/hook-ran")" \
     "legacy add should still run .wt_hook.zsh"
 
+# A successful add leaves the caller in place and makes the worktree the target of cd -.
+test_shell_dir=$PWD
+cd "$repo"
+original_dir=$PWD
+wt add --no-move --porcelain --no-hook -b daemon/cd-minus HEAD > "$stdout_file" 2> "$stderr_file"
+created_path=$(<"$stdout_file")
+assert_eq "$original_dir" "$PWD" \
+    "add should leave the caller in its original directory"
+cd - >/dev/null
+assert_eq "$created_path" "$PWD" \
+    "cd - should enter the worktree created by add"
+cd - >/dev/null
+assert_eq "$original_dir" "$PWD" \
+    "a second cd - should return to the original directory"
+cd "$test_shell_dir"
+
 # Without --no-move, the existing automatic relocation behavior is preserved.
 existing_path="${repo}/existing-move"
 git -C "$repo" worktree add -q -b legacy/move "$existing_path" HEAD
