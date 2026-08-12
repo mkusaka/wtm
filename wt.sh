@@ -236,10 +236,10 @@ wt() {
             else
                 # Direct removal by branch name (simplified from gist)
                 local branch_name=$2
-                local info path
+                local info worktree_path
                 info=$(git worktree list | grep "\[${branch_name}\]") || { echo "No worktree for branch: $branch_name"; return 1; }
-                path=${info%%[[:space:]]*}
-                git worktree remove --force "$path" && git branch -D "$branch_name" && \
+                worktree_path=${info%%[[:space:]]*}
+                git worktree remove --force "$worktree_path" && git branch -D "$branch_name" && \
                     echo "Removed worktree & branch: $branch_name"
             fi
             ;;
